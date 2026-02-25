@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maggiore IA — Chat</title>
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/chat.css">
+</head>
+<body>
+  <div class="chat-layout">
+
+    <header class="chat-header">
+      <h1>Maggiore IA</h1>
+
+      <div class="header-controls">
+
+        <!-- Model picker totalmente customizado -->
+        <div class="model-picker" id="model-picker-wrap">
+          <!-- Trigger (botão que abre o dropdown) -->
+          <button type="button" class="model-picker-trigger" id="model-picker-trigger" aria-haspopup="listbox" aria-expanded="false">
+            <div class="model-picker-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+              </svg>
+            </div>
+            <div class="model-picker-label">
+              <div class="model-name" id="model-picker-name">Carregando…</div>
+              <div class="model-sub">Modelo de linguagem</div>
+            </div>
+            <div class="model-picker-chevron" id="model-picker-chevron">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </div>
+          </button>
+          <!-- Dropdown (preenchido pelo JS) -->
+          <ul class="model-dropdown" id="model-dropdown" role="listbox" aria-label="Modelos disponíveis"></ul>
+          <!-- Input oculto para manter o valor selecionado acessível ao JS -->
+          <input type="hidden" id="model-select" value="mistral">
+        </div>
+
+        <!-- Temperatura -->
+        <div class="temp-group">
+          <span class="temp-label">Temp.</span>
+          <input type="range" id="temperature-slider" min="0" max="1" step="0.1" value="0.7" aria-label="Temperatura">
+          <span class="temp-value-badge" id="temp-value">0.7</span>
+        </div>
+
+        <!-- Usuário -->
+        <div class="user-menu">
+          <span id="user-email" class="user-email"></span>
+          <button type="button" id="btn-logout" class="btn-logout">Sair</button>
+        </div>
+
+      </div>
+    </header>
+
+    <main class="chat-messages" id="chat-messages">
+      <div id="chat-log"></div>
+    </main>
+
+    <p id="api-error" class="chat-error"></p>
+
+    <footer class="chat-footer">
+      <div class="chat-footer-inner">
+        <form id="chat-form" class="chat-input-wrap">
+          <textarea id="message-input" placeholder="Digite sua mensagem…" rows="1"></textarea>
+          <div class="chat-actions">
+            <button type="submit" id="btn-send" class="btn-send" title="Enviar (Enter)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5"/>
+                <polyline points="5 12 12 5 19 12"/>
+              </svg>
+            </button>
+            <button type="button" id="btn-stop" class="btn-stop" title="Parar geração">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                <rect x="4" y="4" width="16" height="16" rx="2.5" fill="currentColor"/>
+              </svg>
+            </button>
+          </div>
+        </form>
+      </div>
+    </footer>
+
+  </div>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/chat.js"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+# Ambiente virtual Python
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Variáveis de ambiente (segredos)
+.env
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor / IDE
+.cursor/
+.vscode/
+*.swp
+*.swo
+
+# Logs e temporários
+*.log
+*.tmp

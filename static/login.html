@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Maggiore IA</title>
+  <link rel="stylesheet" href="/static/css/base.css">
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-box">
+      <h1>Maggiore IA</h1>
+      <p class="subtitle">Entre para acessar o chat</p>
+      <form id="login-form">
+        <input type="email" id="email" placeholder="Email" value="admin@example.com" required autocomplete="email">
+        <input type="password" id="password" placeholder="Senha" value="admin123" required autocomplete="current-password">
+        <button type="submit">Entrar</button>
+      </form>
+      <p id="login-error" class="login-error"></p>
+    </div>
+  </div>
+  <script src="/static/js/auth.js"></script>
+</body>
+</html>

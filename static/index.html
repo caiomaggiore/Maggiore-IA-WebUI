@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SaaS IA — Chat</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div id="app">
+    <div id="login-section">
+      <div class="login-box">
+        <h2>Login</h2>
+        <form id="login-form">
+          <input type="email" id="email" placeholder="Email" value="admin@example.com" required>
+          <input type="password" id="password" placeholder="Senha" value="admin123" required>
+          <button type="submit">Entrar</button>
+        </form>
+        <p id="login-error" class="login-error"></p>
+      </div>
+    </div>
+
+    <div id="chat-section">
+      <header class="app-header">
+        <h1>SaaS IA — Chat</h1>
+        <div class="user-info">
+          <span>Logado como <strong id="user-email"></strong></span>
+          <button type="button" id="logout">Sair</button>
+        </div>
+      </header>
+
+      <main class="chat-main">
+        <div class="chat-toolbar">
+          <label>
+            Modelo:
+            <select id="model-select"></select>
+          </label>
+          <label>
+            Temperatura:
+            <input type="range" id="temperature-slider" min="0" max="1" step="0.1" value="0.7">
+            <span id="temp-value">0.7</span>
+          </label>
+        </div>
+
+        <div id="chat-log"></div>
+
+        <p id="thinking" class="thinking" style="display: none;">IA está respondendo…</p>
+        <p id="api-error" class="api-error"></p>
+
+        <div class="chat-input-area">
+          <form id="chat-form">
+            <textarea id="message-input" placeholder="Digite sua mensagem..." rows="1"></textarea>
+            <button type="submit" id="btn-enviar">Enviar</button>
+          </form>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

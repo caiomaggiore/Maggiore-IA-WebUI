@@ -1,0 +1,151 @@
+/* base.css — estilos base, variáveis e login */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Paleta pastel/azul */
+  --bg-page:         #eef2f8;
+  --bg-card:         #ffffff;
+  --bg-header:       #ffffff;
+  --bg-user-msg:     #c7d8f8;
+  --border:          #dde4f0;
+  --border-focus:    #7aa5e8;
+
+  --text:            #1e2a3a;
+  --text-muted:      #6b7b96;
+  --text-light:      #9aabc2;
+
+  --accent:          #4a7ee8;
+  --accent-hover:    #3366d6;
+  --accent-soft:     #e8effe;
+
+  --danger:          #e05a6b;
+  --danger-soft:     #fdf0f1;
+
+  --radius-sm:       8px;
+  --radius-md:       14px;
+  --radius-lg:       20px;
+  --radius-full:     9999px;
+
+  --shadow-sm:       0 1px 4px rgba(74, 126, 232, 0.08);
+  --shadow-md:       0 4px 16px rgba(74, 126, 232, 0.12);
+
+  --font:            'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg-page);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* ── Login ────────────────────────────────────────────────────────────────── */
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(145deg, #dce8fc 0%, #eef2f8 60%, #e8f0fe 100%);
+}
+
+.login-box {
+  width: 100%;
+  max-width: 420px;
+  padding: 44px 40px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.login-box h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+  letter-spacing: -0.3px;
+}
+
+.login-box .subtitle {
+  margin-top: 6px;
+  margin-bottom: 32px;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.login-box input {
+  width: 100%;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.975rem;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg-page);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.login-box input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(74, 126, 232, 0.12);
+  background: var(--bg-card);
+}
+
+.login-box input::placeholder {
+  color: var(--text-light);
+}
+
+.login-box button[type="submit"] {
+  width: 100%;
+  padding: 14px;
+  margin-top: 4px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  letter-spacing: 0.2px;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.login-box button[type="submit"]:hover {
+  background: var(--accent-hover);
+}
+
+.login-box button[type="submit"]:active {
+  transform: scale(0.99);
+}
+
+.login-box button[type="submit"]:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.login-error {
+  margin-top: 14px;
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--danger);
+}
+
+.login-error:empty {
+  display: none;
+}

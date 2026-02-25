@@ -1,0 +1,49 @@
+```
+
+> Dica: salva isso como “System Prompt” do workspace no Cursor ou deixa num arquivo e referencia sempre.
+
+---
+
+## 2. Como pedir coisas pro Cursor sem ele se perder
+
+Agora alguns **prompts curtos** que você pode usar no dia a dia:
+
+### a) Para gerar o esqueleto inicial
+
+> “Use o spec do projeto (FastAPI SaaS com proxy para Ollama) e crie toda a estrutura de pastas descrita em `PROJECT_SPEC.md`, com arquivos vazios ou com implementações mínimas. Quero conseguir rodar `uvicorn app.main:app --reload` sem erro.”
+
+### b) Para implementar o cliente do Ollama
+
+> “No arquivo `app/services/ollama_client.py`, implemente funções assíncronas `chat()` e `generate()` que chamam o servidor Ollama usando httpx. Elas devem ler `OLLAMA_HOST` da config pydantic e receber os mesmos parâmetros que a API do Ollama (`model`, `messages`/`prompt`, `stream`, `options`).”
+
+### c) Para criar os endpoints
+
+> “Implemente os endpoints descritos no spec em `app/api/v1/chat.py`: `POST /v1/chat` e `POST /v1/generate`. Eles devem validar o JSON com Pydantic, chamar `ollama_client.chat()` / `ollama_client.generate()` e retornar a resposta.”
+
+### d) Para auth JWT
+
+> “Implemente a autenticação JWT conforme o spec: crie `core/security.py` com funções para gerar e validar tokens; crie o endpoint `/auth/login` em `app/api/v1/auth.py` usando um usuário fake em memória, e o endpoint `/auth/me` protegido com dependency de segurança do FastAPI.”
+
+### e) Para não deixar ele trocar stack
+
+Sempre que pedir algo maior, termina com algo nesse estilo:
+
+> “Use sempre a mesma arquitetura e stack do `PROJECT_SPEC.md`. Não altere a estrutura de pastas, não mude de FastAPI para outro framework, não inclua novas dependências grandes sem justificar nos comentários.”
+
+---
+
+## 3. Fluxo de trabalho prático pra você
+
+1. **Hoje**  
+   - Colar esse spec no Cursor.  
+   - Mandar ele criar a estrutura + `main.py` + config + endpoints básicos.  
+   - Rodar local (`uvicorn`) e testar com seus `curl` que já estão funcionando.
+
+2. **Depois**  
+   - Refinar responses (padronizar formato de retorno pro frontend).  
+   - Começar a pensar no painel de usuário + logs de uso.  
+   - Só depois disso encaixar RAG real, n8n, MCP etc.
+
+Se quiser, no próximo passo posso escrever exatamente **os arquivos iniciais** (`main.py`, `config.py`, `ollama_client.py`, `chat.py`) já prontos pra você só colar no Cursor e mandar ele refatorar/expandir.
+::contentReference[oaicite:0]{index=0}
+```
