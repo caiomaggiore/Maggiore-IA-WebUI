@@ -293,6 +293,27 @@
   color: var(--danger);
 }
 
+/* Botão ícone pequeno (tema, etc.) */
+.btn-icon-sm {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.btn-icon-sm:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 /* ── Área de mensagens ────────────────────────────────────────────────────── */
 
 .chat-messages {
@@ -548,38 +569,81 @@
   z-index: 2;
 }
 
-/* ── Responsivo ───────────────────────────────────────────────────────────── */
+/* ── Responsivo mobile ────────────────────────────────────────────────────── */
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .chat-header {
     padding: 0 16px;
+    height: auto;
+    min-height: 56px;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
 
   .chat-header h1 {
     font-size: 1rem;
   }
 
-  .model-picker-face {
+  .header-controls {
+    gap: 10px;
+  }
+
+  /* No mobile, esconde o subtítulo do picker */
+  .model-picker-label .model-sub {
+    display: none;
+  }
+
+  .model-picker-trigger {
     min-width: 140px;
+  }
+
+  /* Esconde email no mobile, mantém apenas botões */
+  .user-email {
+    display: none;
+  }
+
+  /* Temperatura compacta no mobile */
+  .temp-group .temp-label {
+    display: none;
   }
 
   .temp-group input[type="range"] {
     width: 70px;
   }
 
-  .chat-messages {
+  #chat-log {
     padding: 20px 16px 12px;
+    gap: 18px;
   }
 
   .chat-footer {
-    padding: 12px 16px 20px;
-  }
-
-  #chat-log {
-    gap: 18px;
+    padding: 10px 12px 16px;
   }
 
   .chat-message.user .chat-bubble {
     max-width: 90%;
+  }
+
+  .chat-message.assistant .chat-bubble {
+    max-width: 100%;
+  }
+
+  /* Dropdown do model picker abre para baixo mas fica dentro da tela */
+  .model-dropdown {
+    min-width: 220px;
+    max-width: calc(100vw - 32px);
+  }
+}
+
+@media (max-width: 480px) {
+  .chat-input-wrap textarea {
+    font-size: 0.9375rem;
+  }
+
+  .chat-message.user .chat-bubble {
+    max-width: 95%;
+    padding: 10px 14px;
   }
 }

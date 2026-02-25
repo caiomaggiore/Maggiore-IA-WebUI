@@ -21,6 +21,25 @@
     return div.innerHTML;
   }
 
+  // Mapeia erros para mensagens amigáveis
+  function friendlyError(err, status) {
+    if (err && err.name === 'AbortError') {
+      // Abort por timeout vs por stopGeneration
+      return null; // tratado no caller
+    }
+    if (!navigator.onLine) {
+      return 'Sem conexão com a internet. Verifique sua rede e tente novamente.';
+    }
+    if (err && (err.message === 'Failed to fetch' || err.message === 'NetworkError when attempting to fetch resource.')) {
+      return 'Falha na conexão. Verifique sua internet e tente novamente.';
+    }
+    if (status === 404) return 'Modelo não encontrado. Selecione outro modelo no menu acima.';
+    if (status === 502 || status === 503) return 'Servidor Ollama indisponível. Verifique se ele está rodando.';
+    if (status === 504) return 'A resposta demorou muito (timeout). Tente novamente.';
+    if (status >= 500) return 'Erro interno no servidor. Tente novamente em instantes.';
+    return (err && err.message) || 'Ocorreu um erro inesperado. Tente novamente.';
+  }
+
   function showError(msg) {
     const node = el('api-error');
     if (!node) return;
@@ -327,6 +346,11 @@
 
     abortController = new AbortController();
 
+    // Timeout de 90 segundos
+    const timeoutId = setTimeout(function () {
+      if (abortController) abortController.abort('timeout');
+    }, 90000);
+
     try {
       const res = await Auth.apiFetch('/v1/chat', {
         method: 'POST',
@@ -342,7 +366,8 @@
 
       if (!res.ok) {
         const errData = await res.json().catch(function () { return {}; });
-        throw new Error(errData.detail || 'Erro ' + res.status);
+        const msg = friendlyError(null, res.status) || errData.detail || 'Erro ' + res.status;
+        throw Object.assign(new Error(msg), { status: res.status });
       }
 
       const reader = res.body.getReader();
@@ -383,26 +408,35 @@
 
     } catch (err) {
       if (err.name === 'AbortError') {
-        messageHistory[messageHistory.length - 1].content += '\n[Geração interrompida]';
-        finalizeAssistantBubble();
-        // Atualiza o conteúdo da bolha com o texto final
-        const bubble = el('chat-log') && el('chat-log').lastElementChild;
-        if (bubble) {
-          const span = bubble.querySelector('.content');
-          if (span) span.textContent = messageHistory[messageHistory.length - 1].content;
+        const isTimeout = err.message === 'timeout' || (abortController && abortController.signal.reason === 'timeout');
+        if (isTimeout) {
+          // Timeout: remove placeholder, mostra erro
+          messageHistory.pop();
+          messageHistory.pop();
+          renderMessages();
+          showError('A resposta demorou muito (timeout). Tente novamente ou escolha outro modelo.');
+        } else {
+          // Interrompido pelo usuário
+          messageHistory[messageHistory.length - 1].content += '\n\n[Geração interrompida]';
+          finalizeAssistantBubble();
+          const bubble = el('assistant-bubble-active') || (el('chat-log') && el('chat-log').lastElementChild);
+          if (bubble) {
+            const span = bubble.querySelector('.content');
+            if (span) span.textContent = messageHistory[messageHistory.length - 1].content;
+          }
         }
       } else {
-        // Remove as duas entradas do histórico e re-renderiza
+        // Erro de rede, servidor ou modelo
         messageHistory.pop();
         messageHistory.pop();
         renderMessages();
-        showError(err.message || 'Erro ao enviar mensagem.');
+        showError(friendlyError(err, err.status) || err.message || 'Erro ao enviar mensagem.');
       }
     } finally {
+      clearTimeout(timeoutId);
       finalizeAssistantBubble();
       setStreaming(false);
       abortController = null;
-      // Devolve o foco para o campo de mensagem
       const input = el('message-input');
       if (input) input.focus();
     }
@@ -471,6 +505,33 @@
     if (btnStop) {
       btnStop.addEventListener('click', stopGeneration);
     }
+
+    // Toggle de tema claro/escuro
+    (function () {
+      const THEME_KEY = 'maggiore_theme';
+      const btn = el('btn-theme');
+      const iconSun  = el('icon-sun');
+      const iconMoon = el('icon-moon');
+
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem(THEME_KEY, theme);
+        if (iconSun)  iconSun.style.display  = theme === 'dark' ? 'none'  : '';
+        if (iconMoon) iconMoon.style.display = theme === 'dark' ? ''      : 'none';
+        if (btn) btn.title = theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro';
+      }
+
+      const saved = localStorage.getItem(THEME_KEY);
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      applyTheme(saved || (prefersDark ? 'dark' : 'light'));
+
+      if (btn) {
+        btn.addEventListener('click', function () {
+          const current = document.documentElement.getAttribute('data-theme');
+          applyTheme(current === 'dark' ? 'light' : 'dark');
+        });
+      }
+    })();
 
     // Model picker: abrir/fechar
     const pickerTrigger = el('model-picker-trigger');
