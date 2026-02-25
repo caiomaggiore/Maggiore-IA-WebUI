@@ -450,7 +450,18 @@
     const msg = input.value.trim();
     if (!msg) return;
     input.value = '';
+    autoResizeTextarea(input); // reseta altura após enviar
     sendMessage(msg);
+  }
+
+  // Expande o textarea conforme o conteúdo, limitado a 10 linhas
+  function autoResizeTextarea(textarea) {
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 25;
+    const maxHeight = lineHeight * 10 + 8; // 10 linhas + padding
+    textarea.style.height = Math.min(textarea.scrollHeight, maxHeight) + 'px';
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden';
   }
 
   // ── Inicialização ─────────────────────────────────────────────────────────
@@ -489,7 +500,7 @@
       });
     }
 
-    // Enter envia (Shift+Enter = nova linha)
+    // Enter envia (Shift+Enter = nova linha) + auto-expand
     const textarea = el('message-input');
     if (textarea) {
       textarea.addEventListener('keydown', function (e) {
@@ -497,6 +508,9 @@
           e.preventDefault();
           submitMessage();
         }
+      });
+      textarea.addEventListener('input', function () {
+        autoResizeTextarea(textarea);
       });
     }
 

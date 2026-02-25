@@ -36,9 +36,9 @@ if _STATIC_DIR.exists():
 
 @app.get("/", tags=["frontend"])
 async def index():
-    """Redireciona para a tela de login."""
+    """Serve a landing page do projeto."""
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/login.html")
+    return RedirectResponse(url="/static/index.html")
 
 
 @app.get("/health", tags=["health"])

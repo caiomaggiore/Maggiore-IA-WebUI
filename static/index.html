@@ -3,60 +3,547 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SaaS IA — Chat</title>
-  <link rel="stylesheet" href="/static/css/style.css">
+  <title>Maggiore IA — Suporte Técnico Inteligente</title>
+  <link rel="stylesheet" href="/static/css/base.css">
+  <style>
+    /* ── Landing exclusivo ── */
+    body {
+      background: var(--bg-page);
+      overflow-x: hidden;
+    }
+
+    /* Aplica tema salvo antes de renderizar */
+
+    /* ── Navbar ── */
+    .lp-nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      height: 64px;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    [data-theme="dark"] .lp-nav {
+      background: rgba(31, 41, 55, 0.85);
+    }
+
+    .lp-nav-logo {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .lp-nav-logo .logo-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: inline-block;
+    }
+
+    .lp-nav a.btn-nav {
+      padding: 9px 22px;
+      border-radius: var(--radius-full);
+      background: var(--accent);
+      color: white;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .lp-nav a.btn-nav:hover {
+      background: var(--accent-hover);
+    }
+
+    /* ── Hero ── */
+    .lp-hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 100px 24px 60px;
+      background: linear-gradient(160deg, #dce8fc 0%, var(--bg-page) 50%, #e8f0fe 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    [data-theme="dark"] .lp-hero {
+      background: linear-gradient(160deg, #0f172a 0%, #111827 50%, #1e293b 100%);
+    }
+
+    /* Círculos decorativos */
+    .lp-hero::before,
+    .lp-hero::after {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .lp-hero::before {
+      width: 500px; height: 500px;
+      background: var(--accent);
+      top: -100px; left: -100px;
+    }
+
+    .lp-hero::after {
+      width: 400px; height: 400px;
+      background: #a5c8ff;
+      bottom: -80px; right: -80px;
+    }
+
+    [data-theme="dark"] .lp-hero::after {
+      background: #1e3a5f;
+    }
+
+    .lp-hero-inner {
+      position: relative;
+      max-width: 760px;
+      z-index: 1;
+    }
+
+    .lp-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 16px;
+      border-radius: var(--radius-full);
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+      border: 1px solid rgba(74, 126, 232, 0.2);
+    }
+
+    .lp-badge-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .lp-hero h1 {
+      font-size: clamp(2.2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -1px;
+      color: var(--text);
+      margin-bottom: 24px;
+    }
+
+    .lp-hero h1 .highlight {
+      color: var(--accent);
+    }
+
+    .lp-hero p.lead {
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      color: var(--text-muted);
+      line-height: 1.7;
+      max-width: 560px;
+      margin: 0 auto 40px;
+    }
+
+    .lp-cta-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 32px;
+      border-radius: var(--radius-full);
+      background: var(--accent);
+      color: white;
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 4px 20px rgba(74, 126, 232, 0.35);
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(74, 126, 232, 0.4);
+    }
+
+    .btn-primary svg { flex-shrink: 0; }
+
+    .btn-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 28px;
+      border-radius: var(--radius-full);
+      border: 1.5px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+
+    .btn-outline:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    /* ── Features ── */
+    .lp-features {
+      padding: 96px 24px;
+      background: var(--bg-card);
+    }
+
+    [data-theme="dark"] .lp-features {
+      background: #1f2937;
+    }
+
+    .lp-section-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--accent);
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .lp-section-title {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 800;
+      text-align: center;
+      color: var(--text);
+      letter-spacing: -0.5px;
+      margin-bottom: 56px;
+    }
+
+    .lp-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .lp-card {
+      padding: 32px 28px;
+      background: var(--bg-page);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+    }
+
+    [data-theme="dark"] .lp-card {
+      background: #111827;
+    }
+
+    .lp-card:hover {
+      border-color: var(--border-focus);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-3px);
+    }
+
+    .lp-card-icon {
+      width: 48px; height: 48px;
+      border-radius: var(--radius-sm);
+      background: var(--accent-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      color: var(--accent);
+    }
+
+    .lp-card h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+
+    .lp-card p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+
+    /* ── Stack ── */
+    .lp-stack {
+      padding: 80px 24px;
+      text-align: center;
+      background: var(--bg-page);
+    }
+
+    .lp-stack-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    .pill {
+      padding: 7px 18px;
+      border-radius: var(--radius-full);
+      background: var(--bg-card);
+      border: 1.5px solid var(--border);
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    [data-theme="dark"] .pill {
+      background: #1f2937;
+    }
+
+    /* ── CTA final ── */
+    .lp-cta {
+      padding: 100px 24px;
+      text-align: center;
+      background: linear-gradient(135deg, var(--accent-soft) 0%, var(--bg-page) 100%);
+      border-top: 1.5px solid var(--border);
+    }
+
+    [data-theme="dark"] .lp-cta {
+      background: linear-gradient(135deg, #1e3a5f 0%, #111827 100%);
+    }
+
+    .lp-cta h2 {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 16px;
+      letter-spacing: -0.4px;
+    }
+
+    .lp-cta p {
+      font-size: 1rem;
+      color: var(--text-muted);
+      margin-bottom: 36px;
+    }
+
+    /* ── Footer ── */
+    .lp-footer {
+      padding: 28px 40px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: var(--bg-card);
+    }
+
+    [data-theme="dark"] .lp-footer {
+      background: #1f2937;
+    }
+
+    .lp-footer p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .lp-footer .theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: var(--font);
+    }
+
+    .lp-footer .theme-toggle:hover { color: var(--accent); }
+
+    @media (max-width: 640px) {
+      .lp-nav { padding: 0 20px; }
+      .lp-nav-logo span:not(.logo-dot) { display: none; }
+      .lp-hero { padding: 90px 20px 50px; }
+      .lp-features, .lp-stack, .lp-cta { padding: 64px 20px; }
+      .lp-footer { padding: 20px; flex-direction: column; align-items: flex-start; }
+    }
+  </style>
 </head>
 <body>
-  <div id="app">
-    <div id="login-section">
-      <div class="login-box">
-        <h2>Login</h2>
-        <form id="login-form">
-          <input type="email" id="email" placeholder="Email" value="admin@example.com" required>
-          <input type="password" id="password" placeholder="Senha" value="admin123" required>
-          <button type="submit">Entrar</button>
-        </form>
-        <p id="login-error" class="login-error"></p>
+
+  <!-- Navbar -->
+  <nav class="lp-nav">
+    <div class="lp-nav-logo">
+      <span class="logo-dot"></span>
+      <span>Maggiore IA</span>
+    </div>
+    <a href="/static/login.html" class="btn-nav">Acessar</a>
+  </nav>
+
+  <!-- Hero -->
+  <section class="lp-hero">
+    <div class="lp-hero-inner">
+      <div class="lp-badge">
+        <span class="lp-badge-dot"></span>
+        Plataforma SaaS · FastAPI + Ollama
+      </div>
+      <h1>
+        IA de suporte técnico<br>
+        para <span class="highlight">áudio e vídeo</span>
+      </h1>
+      <p class="lead">
+        Chat inteligente com modelos de linguagem locais via Ollama.
+        Estrutura pronta para RAG, integrações e multi-cliente.
+      </p>
+      <div class="lp-cta-group">
+        <a href="/static/login.html" class="btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          Entrar no Chat
+        </a>
+        <a href="https://github.com/caiomaggiore/Maggiore-IA-WebUI" target="_blank" rel="noopener" class="btn-outline">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.17 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02 0 2.04.14 3 .4 2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.87.12 3.17.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58C20.57 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          Ver no GitHub
+        </a>
       </div>
     </div>
+  </section>
 
-    <div id="chat-section">
-      <header class="app-header">
-        <h1>SaaS IA — Chat</h1>
-        <div class="user-info">
-          <span>Logado como <strong id="user-email"></strong></span>
-          <button type="button" id="logout">Sair</button>
+  <!-- Features -->
+  <section class="lp-features">
+    <p class="lp-section-label">O que está incluído</p>
+    <h2 class="lp-section-title">Tudo pronto para crescer</h2>
+    <div class="lp-grid">
+      <div class="lp-card">
+        <div class="lp-card-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         </div>
-      </header>
-
-      <main class="chat-main">
-        <div class="chat-toolbar">
-          <label>
-            Modelo:
-            <select id="model-select"></select>
-          </label>
-          <label>
-            Temperatura:
-            <input type="range" id="temperature-slider" min="0" max="1" step="0.1" value="0.7">
-            <span id="temp-value">0.7</span>
-          </label>
+        <h3>Chat com streaming</h3>
+        <p>Respostas token por token via NDJSON. Suporte a múltiplos modelos Ollama com seleção dinâmica.</p>
+      </div>
+      <div class="lp-card">
+        <div class="lp-card-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </div>
-
-        <div id="chat-log"></div>
-
-        <p id="thinking" class="thinking" style="display: none;">IA está respondendo…</p>
-        <p id="api-error" class="api-error"></p>
-
-        <div class="chat-input-area">
-          <form id="chat-form">
-            <textarea id="message-input" placeholder="Digite sua mensagem..." rows="1"></textarea>
-            <button type="submit" id="btn-enviar">Enviar</button>
-          </form>
+        <h3>Autenticação JWT</h3>
+        <p>Login seguro com tokens JWT. Sessão persistida no browser e renovação transparente.</p>
+      </div>
+      <div class="lp-card">
+        <div class="lp-card-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         </div>
-      </main>
+        <h3>Proxy para Ollama</h3>
+        <p>FastAPI encaminha as requisições ao Ollama local ou remoto, com suporte a streaming e opções de geração.</p>
+      </div>
+      <div class="lp-card">
+        <div class="lp-card-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        </div>
+        <h3>RAG ready</h3>
+        <p>Estrutura preparada para integrar base de conhecimento técnica com Qdrant ou Chroma (documentos Q-SYS, AV).</p>
+      </div>
+      <div class="lp-card">
+        <div class="lp-card-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </div>
+        <h3>Interface moderna</h3>
+        <p>Frontend HTML/JS com tema claro/escuro, streaming visual, seleção de modelo e temperatura ajustável.</p>
+      </div>
+      <div class="lp-card">
+        <div class="lp-card-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        </div>
+        <h3>Integrações futuras</h3>
+        <p>Stubs para n8n (webhooks), MCP (ferramentas ativas) e multi-cliente. Fácil de expandir.</p>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <script src="/static/js/app.js"></script>
+  <!-- Stack -->
+  <section class="lp-stack">
+    <p class="lp-section-label">Stack técnica</p>
+    <h2 class="lp-section-title" style="margin-bottom:32px;">Construído com ferramentas modernas</h2>
+    <div class="lp-stack-pills">
+      <span class="pill">Python 3.14</span>
+      <span class="pill">FastAPI</span>
+      <span class="pill">Uvicorn</span>
+      <span class="pill">Ollama</span>
+      <span class="pill">httpx async</span>
+      <span class="pill">JWT</span>
+      <span class="pill">Pydantic v2</span>
+      <span class="pill">HTML / CSS / JS</span>
+      <span class="pill">Streaming NDJSON</span>
+      <span class="pill">RAG (em breve)</span>
+    </div>
+  </section>
+
+  <!-- CTA final -->
+  <section class="lp-cta">
+    <h2>Pronto para começar?</h2>
+    <p>Acesse o chat com suas credenciais e converse com a IA agora.</p>
+    <a href="/static/login.html" class="btn-primary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      Acessar o Chat
+    </a>
+  </section>
+
+  <!-- Footer -->
+  <footer class="lp-footer">
+    <p>© 2025 Maggiore IA — Plataforma em desenvolvimento.</p>
+    <button class="theme-toggle" id="lp-theme-btn" aria-label="Alternar tema">
+      <svg id="lp-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg id="lp-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <span id="lp-theme-label">Tema escuro</span>
+    </button>
+  </footer>
+
+  <script>
+    const THEME_KEY = 'maggiore_theme';
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem(THEME_KEY, theme);
+      const sun  = document.getElementById('lp-icon-sun');
+      const moon = document.getElementById('lp-icon-moon');
+      const label = document.getElementById('lp-theme-label');
+      if (sun)  sun.style.display  = theme === 'dark' ? 'none' : '';
+      if (moon) moon.style.display = theme === 'dark' ? '' : 'none';
+      if (label) label.textContent = theme === 'dark' ? 'Tema claro' : 'Tema escuro';
+    }
+
+    const saved = localStorage.getItem(THEME_KEY);
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    applyTheme(saved || (prefersDark ? 'dark' : 'light'));
+
+    document.getElementById('lp-theme-btn').addEventListener('click', function () {
+      const current = document.documentElement.getAttribute('data-theme');
+      applyTheme(current === 'dark' ? 'light' : 'dark');
+    });
+  </script>
 </body>
 </html>
