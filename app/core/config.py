@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 60
 
+    # PostgreSQL obrigatório — defina no .env
+    DATABASE_URL: str
+
 
 settings = Settings()
 

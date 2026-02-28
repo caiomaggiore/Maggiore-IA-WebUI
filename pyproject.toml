@@ -1,0 +1,12 @@
+[project]
+name = "maggiore-ia"
+version = "0.1.0"
+description = "Assistente IA pessoal e corporativo com base de conhecimento privada"
+requires-python = ">=3.11"
+
+# ── Scripts utilitários ───────────────────────────────────────────────────────
+# Executar a partir da raiz do projeto (com o .venv ativado):
+#
+#   python -m scripts.create_admin   → cria o usuário admin inicial
+#   python -m app.main               → sobe o servidor (dev)
+#   uvicorn app.main:app --reload    → sobe o servidor (dev, alternativa)

@@ -1,10 +1,223 @@
 /* chat.css — layout principal do chat */
 
-/* ── Layout ───────────────────────────────────────────────────────────────── */
+/* ── Layout raiz: sidebar fixa à esquerda + chat à direita ──────────────── */
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+.layout {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-page);
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg-card);
+  border-right: 1.5px solid var(--border);
+  transition: transform 0.25s ease;
+  z-index: 200;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .sidebar {
+  background: #1f2937;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 16px 12px;
+  flex-shrink: 0;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+
+.sidebar-brand svg {
+  color: var(--accent);
+}
+
+.sidebar-close {
+  display: none; /* visível só no mobile */
+}
+
+.btn-new-session {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px 8px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-new-session:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-new-session svg {
+  flex-shrink: 0;
+}
+
+/* Lista de sessões */
+.sessions-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px 16px;
+}
+
+.sessions-nav::-webkit-scrollbar { width: 4px; }
+.sessions-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+.sessions-nav::-webkit-scrollbar-track { background: transparent; }
+
+.sessions-nav-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 8px 8px 4px;
+}
+
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+  border: 1.5px solid transparent;
+}
+
+.session-item:hover {
+  background: var(--bg-page);
+}
+
+[data-theme="dark"] .session-item:hover {
+  background: #111827;
+}
+
+.session-item.active {
+  background: var(--accent-soft);
+  border-color: rgba(74, 126, 232, 0.25);
+}
+
+[data-theme="dark"] .session-item.active {
+  background: #1e3a5f;
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+.session-item-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg-page);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .session-item-icon {
+  background: #374151;
+}
+
+.session-item.active .session-item-icon {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.session-item-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-item-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.session-item.active .session-item-title {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.session-item-date {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.sessions-empty {
+  padding: 24px 10px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.sessions-loading {
+  padding: 20px 10px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Overlay para mobile */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 190;
+}
+
+/* ── Coluna do chat (flex: 1 do .layout) ─────────────────────────────────── */
 
 .chat-layout {
   display: flex;
   flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
   height: 100vh;
   overflow: hidden;
   background: var(--bg-page);
@@ -12,13 +225,24 @@
 
 /* ── Header ───────────────────────────────────────────────────────────────── */
 
+/* Botão hambúrguer — oculto no desktop, visível no mobile */
+#btn-open-sidebar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  #btn-open-sidebar {
+    display: flex;
+  }
+}
+
 .chat-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 12px;
-  padding: 0 28px;
+  padding: 0 20px;
   height: 64px;
   background: var(--bg-header);
   border-bottom: 1.5px solid var(--border);
@@ -32,6 +256,7 @@
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.2px;
+  flex-shrink: 0;
 }
 
 .chat-header .header-controls {
@@ -572,6 +797,35 @@
 }
 
 /* ── Responsivo mobile ────────────────────────────────────────────────────── */
+
+/* ── Mobile: sidebar como drawer deslizante ──────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    transform: translateX(-100%);
+    box-shadow: none;
+    width: 280px;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 32px rgba(0, 0, 0, 0.2);
+  }
+
+  /* O chat-layout ocupa 100% no mobile (sidebar não empurra) */
+  .chat-layout {
+    width: 100%;
+  }
+
+  .sidebar-overlay.visible {
+    display: block;
+  }
+
+  .sidebar-close {
+    display: flex;
+  }
+}
 
 @media (max-width: 768px) {
   .chat-header {

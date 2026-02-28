@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict
 
 from app.api.v1.auth import get_current_user
-from app.models.user import User
+from app.models.user import UserSchema as User
 from app.services import rag_service
 
 logger = logging.getLogger(__name__)

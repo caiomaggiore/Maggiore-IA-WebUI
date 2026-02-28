@@ -1,13 +1,14 @@
-from pathlib import Path
-
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1 import auth, chat, rag
 from app.core.config import settings
+from app.core.database import Base, engine
 from app.core.logging import setup_logging
+import app.models  # noqa: F401 — registra todos os ORM no metadata antes do create_all
 
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
@@ -16,6 +17,8 @@ _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 async def lifespan(app: FastAPI):
     """Inicializa recursos na subida e libera no encerramento."""
     setup_logging()
+    # Cria tabelas que ainda não existem (dev). Trocar por Alembic em produção.
+    Base.metadata.create_all(bind=engine)
     yield
 
 
