@@ -157,7 +157,10 @@
     scrollBottom();
   }
 
+  var currentThinkingBlock = null;
+
   function appendAssistantBubble() {
+    currentThinkingBlock = null;
     const container = el('chat-log');
     if (!container) return;
     const thinkingWrap = document.createElement('div');
@@ -174,11 +177,57 @@
     scrollBottom();
   }
 
+  function showThinkingAnalysis(data) {
+    const wrap = el('thinking-wrap');
+    if (!wrap) return;
+    var timeMs = data.thinking_time_ms || 0;
+    var level = (data.thinking_level || 'inteligente').toLowerCase();
+    var levelLabels = { esperto: 'Esperto', inteligente: 'Inteligente', culto: 'Culto', sabio: 'Sábio' };
+    var levelLabel = levelLabels[level] || data.thinking_level || 'Inteligente';
+    wrap.className = 'chat-message assistant';
+    wrap.id = 'thinking-wrap';
+    wrap.innerHTML =
+      '<div class="chat-thinking-block" data-thinking-block>' +
+        '<div class="chat-thinking-header">' +
+          '<span class="chat-thinking-status"><span class="chat-thinking-emoji">🔍</span> <span class="chat-thinking-status-text">Pensando…</span> <span class="chat-thinking-timer" data-timer>' + (timeMs / 1000).toFixed(1) + 's</span></span>' +
+          '<button type="button" class="chat-thinking-toggle-btn" data-toggle-analysis>Ver análise</button>' +
+        '</div>' +
+        '<div class="chat-thinking-summary" data-summary>' + escapeHtml(data.analysis_summary || '') + '</div>' +
+      '</div>';
+    var block = wrap.querySelector('[data-thinking-block]');
+    var btn = wrap.querySelector('[data-toggle-analysis]');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        block.classList.toggle('expanded');
+        btn.textContent = block.classList.contains('expanded') ? 'Ocultar análise' : 'Ver análise';
+      });
+    }
+    currentThinkingBlock = block;
+    scrollBottom();
+  }
+
+  function finishThinkingStatus() {
+    if (currentThinkingBlock) {
+      var statusText = currentThinkingBlock.querySelector('.chat-thinking-status-text');
+      var btn = currentThinkingBlock.querySelector('[data-toggle-analysis]');
+      if (statusText) statusText.textContent = 'Pensamento concluído';
+      if (btn) btn.textContent = 'Ver análise';
+      currentThinkingBlock = null;
+    }
+  }
+
   function appendToken(token) {
     const container = el('chat-log');
     if (!container) return;
+    var thinkingBlock = container.querySelector('.chat-thinking-block');
+    if (thinkingBlock) {
+      finishThinkingStatus();
+    }
     const thinking = el('thinking-wrap');
-    if (thinking) thinking.remove();
+    if (thinking && !thinking.querySelector('.chat-thinking-block')) thinking.remove();
+    else if (thinking && thinking.querySelector('.chat-thinking-block')) {
+      thinking.removeAttribute('id');
+    }
     let bubble = el('assistant-bubble-active');
     if (!bubble) {
       bubble = buildBubble('assistant', '');
@@ -715,14 +764,27 @@
     }, 90000);
 
     try {
+      var thinkingEnabled = false;
+      var thinkingLevel = 'inteligente';
+      var cb = el('thinking-enabled');
+      var sel = el('thinking-level');
+      var emptyInput = el('empty-state-input');
+      if (emptyInput && document.activeElement === emptyInput) {
+        var cbEmpty = el('thinking-enabled-empty');
+        var selEmpty = el('thinking-level-empty');
+        if (cbEmpty && cbEmpty.checked) { thinkingEnabled = true; if (selEmpty) thinkingLevel = selEmpty.value || 'inteligente'; }
+      } else {
+        if (cb && cb.checked) { thinkingEnabled = true; if (sel) thinkingLevel = sel.value || 'inteligente'; }
+      }
+
       const body = {
         model: model,
         messages: toSend,
         stream: true,
         options: { temperature: temp },
       };
-      // Inclui session_id se houver sessão ativa
       if (currentSessionId) body.session_id = currentSessionId;
+      if (thinkingEnabled) body.thinking = { enabled: true, level: thinkingLevel };
 
       const res = await Auth.apiFetch('/v1/chat', {
         method: 'POST',
@@ -757,7 +819,18 @@
           if (!line) continue;
           try {
             const obj = JSON.parse(line);
-            if (obj.token) {
+            if (obj.type === 'analysis') {
+              showThinkingAnalysis(obj);
+              try {
+                var key = 'maggiore_thinking_' + (currentSessionId || 'new');
+                localStorage.setItem(key, JSON.stringify({
+                  summary: obj.analysis_summary,
+                  thinking_time_ms: obj.thinking_time_ms,
+                  thinking_level: obj.thinking_level,
+                  at: Date.now(),
+                }));
+              } catch (_) {}
+            } else if (obj.token) {
               messageHistory[messageHistory.length - 1].content += obj.token;
               appendToken(obj.token);
             }
@@ -767,7 +840,18 @@
       if (buffer.trim()) {
         try {
           const obj = JSON.parse(buffer);
-          if (obj.token) {
+          if (obj.type === 'analysis') {
+            showThinkingAnalysis(obj);
+            try {
+              var key = 'maggiore_thinking_' + (currentSessionId || 'new');
+              localStorage.setItem(key, JSON.stringify({
+                summary: obj.analysis_summary,
+                thinking_time_ms: obj.thinking_time_ms,
+                thinking_level: obj.thinking_level,
+                at: Date.now(),
+              }));
+            } catch (_) {}
+          } else if (obj.token) {
             messageHistory[messageHistory.length - 1].content += obj.token;
             appendToken(obj.token);
           }
@@ -1064,6 +1148,26 @@
     // Formulário de envio
     const form = el('chat-form');
     if (form) form.addEventListener('submit', function (e) { e.preventDefault(); submitMessage(); });
+
+    // Sincronizar controles Thinking (footer e empty state)
+    (function () {
+      var cb = el('thinking-enabled');
+      var sel = el('thinking-level');
+      var cbEmpty = el('thinking-enabled-empty');
+      var selEmpty = el('thinking-level-empty');
+      function syncFromFooter() {
+        if (cbEmpty) cbEmpty.checked = cb ? cb.checked : false;
+        if (selEmpty && sel) selEmpty.value = sel.value;
+      }
+      function syncFromEmpty() {
+        if (cb) cb.checked = cbEmpty ? cbEmpty.checked : false;
+        if (sel && selEmpty) sel.value = selEmpty.value;
+      }
+      if (cb) cb.addEventListener('change', syncFromFooter);
+      if (sel) sel.addEventListener('change', syncFromFooter);
+      if (cbEmpty) cbEmpty.addEventListener('change', syncFromEmpty);
+      if (selEmpty) selEmpty.addEventListener('change', syncFromEmpty);
+    })();
 
     // Enter envia
     const textarea = el('message-input');

@@ -153,3 +153,65 @@ async def generate_session_title_and_subtitle(
     except Exception as exc:
         logger.warning("Falha ao gerar título/subtítulo via Ollama: %s", exc)
         return "Conversa", ""
+
+
+# ── Thinking Mode (planner interno, não persistido) ───────────────────────────
+
+THINKING_LEVELS = ("esperto", "inteligente", "culto", "sabio")
+
+
+def _thinking_prompt_and_options(level: str) -> tuple[str, int]:
+    """Retorna instrução extra para o prompt e num_predict conforme o nível."""
+    level = (level or "inteligente").lower().strip()
+    if level not in THINKING_LEVELS:
+        level = "inteligente"
+    if level == "esperto":
+        return (
+            "Seja objetivo e direto. Em 1-2 frases: intenção e um ponto central.",
+            80,
+        )
+    if level == "inteligente":
+        return (
+            "Em 2-3 frases: intenção do usuário, tópicos principais e uma suposição útil. Sem listas longas.",
+            150,
+        )
+    if level == "culto":
+        return (
+            "Em um parágrafo curto e bem escrito: intenção, contexto relevante, tópicos chave e premissas. Linguagem clara.",
+            220,
+        )
+    # sabio
+    return (
+        "Em um parágrafo denso e reflexivo: intenção profunda, contexto amplo, temas e premissas. Pode citar nuances.",
+        320,
+    )
+
+
+async def run_thinking_planner(
+    user_message: str, level: str, model: str = "mistral"
+) -> str:
+    """
+    Fase 1 do Thinking Mode: gera análise interna (não-streaming).
+    Retorna um resumo curto e legível. Nunca chain-of-thought.
+    Não é persistido no servidor.
+    """
+    instruction, num_predict = _thinking_prompt_and_options(level)
+    prompt = (
+        f"Você é um planejador interno. Analise a mensagem do usuário e produza apenas um resumo de análise.\n"
+        f"{instruction}\n"
+        f"Não liste passos, não use bullet points longos. Uma única resposta em prosa.\n\n"
+        f"Mensagem do usuário:\n{user_message[:2000]}"
+    )
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {"temperature": 0.4, "num_predict": num_predict},
+    }
+    try:
+        raw = await ollama_client.generate(payload)
+        response = (raw.get("response") or "").strip()
+        return response[:1500] if response else "Análise não disponível."
+    except Exception as exc:
+        logger.warning("Falha no thinking planner: %s", exc)
+        return "Análise indisponível."

@@ -53,6 +53,12 @@ class ChatOptions(BaseModel):
     num_predict: int | None = None
 
 
+class ThinkingOptions(BaseModel):
+    """Modo Thinking: ativo e nível de profundidade. Não é persistido no servidor."""
+    enabled: bool = False
+    level: str = "inteligente"  # esperto | inteligente | culto | sabio
+
+
 class ChatRequest(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
@@ -72,6 +78,7 @@ class ChatRequest(BaseModel):
     stream: bool = False
     session_id: int | None = None
     options: ChatOptions | None = None
+    thinking: ThinkingOptions | None = None
 
 
 class ChatMessageResponse(BaseModel):
@@ -165,18 +172,54 @@ async def _stream_with_persistence(
     session_id: int,
     model: str,
     temperature: float | None,
+    thinking: Any = None,
+    last_user_message: str = "",
 ) -> AsyncIterator[bytes]:
     """Wrapper do stream que persiste a resposta completa da IA após o último token.
 
-    Usa SessionLocal() diretamente porque o Depends(get_db) já estará fechado
-    quando o generator terminar de ser consumido pelo cliente.
+    Se thinking estiver ativo, emite primeiro um chunk type=analysis (não persistido)
+    e usa o planner como contexto interno na chamada ao chat.
     """
-    full_content: list[str] = []
+    import json
+    import time
 
-    async for chunk in chat_service.handle_chat_stream(payload):
-        # chunk é b'{"token":"..."}\n' — extrai o texto para acumular
+    full_content: list[str] = []
+    messages = list(payload.get("messages") or [])
+    level = "inteligente"
+
+    if thinking and getattr(thinking, "enabled", False):
+        level = (getattr(thinking, "level", None) or "inteligente").lower()
+        if level not in ("esperto", "inteligente", "culto", "sabio"):
+            level = "inteligente"
+        t0 = time.perf_counter()
+        analysis_summary = await chat_svc.run_thinking_planner(
+            last_user_message or (messages[-1].get("content", "") if messages else ""),
+            level=level,
+            model=payload.get("model") or model,
+        )
+        thinking_time_ms = int((time.perf_counter() - t0) * 1000)
+        analysis_chunk = json.dumps({
+            "type": "analysis",
+            "analysis_summary": analysis_summary,
+            "thinking_time_ms": thinking_time_ms,
+            "thinking_level": level,
+        }, ensure_ascii=False) + "\n"
+        yield analysis_chunk.encode("utf-8")
+
+        # Injeta o resumo do planner como contexto (system) para a resposta final
+        system_ctx = (
+            "[Contexto interno de planejamento - não repetir na resposta]\n"
+            f"{analysis_summary}"
+        )
+        new_messages = [{"role": "system", "content": system_ctx}] + [
+            {"role": m.get("role", "user"), "content": m.get("content", "")}
+            for m in messages
+        ]
+        payload = {**payload, "messages": new_messages}
+    payload_for_ollama = {k: v for k, v in payload.items() if k != "thinking"}
+
+    async for chunk in chat_service.handle_chat_stream(payload_for_ollama):
         try:
-            import json
             obj = json.loads(chunk.decode("utf-8").strip())
             if obj.get("token"):
                 full_content.append(obj["token"])
@@ -184,7 +227,6 @@ async def _stream_with_persistence(
             pass
         yield chunk
 
-    # Stream concluído — persiste a resposta da IA e opcionalmente gera/atualiza título
     content = "".join(full_content)
     if content:
         db = SessionLocal()
@@ -244,6 +286,7 @@ async def chat(
         )
 
     payload = request.model_dump(exclude_none=True, exclude={"session_id"})
+    thinking_opts = request.thinking if request.thinking and getattr(request.thinking, "enabled", False) else None
 
     # ── Streaming ──
     if request.stream:
@@ -253,6 +296,8 @@ async def chat(
                 session_id=session_id,
                 model=request.model,
                 temperature=temperature,
+                thinking=thinking_opts,
+                last_user_message=last_user_msg,
             ),
             media_type="application/x-ndjson",
             headers={"X-Session-Id": str(session_id)},
