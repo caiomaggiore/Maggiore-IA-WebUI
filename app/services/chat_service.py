@@ -100,3 +100,56 @@ async def handle_generate_stream(payload: dict[str, Any]) -> AsyncIterator[bytes
         ollama_client.generate_stream(payload), _transform_generate_line
     ):
         yield chunk
+
+
+async def generate_session_title(first_user_message: str, model: str = "mistral") -> str:
+    """Gera um título de até 4 palavras para a sessão com base na primeira mensagem do usuário."""
+    prompt = (
+        f"Gere um título muito curto (máximo 4 palavras) para uma conversa que começa com a seguinte mensagem. "
+        f"Responda APENAS com o título, sem aspas nem pontuação extra.\n\nMensagem: {first_user_message[:500]}"
+    )
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {"temperature": 0.3, "num_predict": 30},
+    }
+    try:
+        raw = await ollama_client.generate(payload)
+        response = (raw.get("response") or "").strip()
+        words = response.split()[:4]
+        return " ".join(words) if words else first_user_message[:50].strip() or "Nova conversa"
+    except Exception as exc:
+        logger.warning("Falha ao gerar título via Ollama: %s", exc)
+        return first_user_message[:50].strip() or "Nova conversa"
+
+
+async def generate_session_title_and_subtitle(
+    recent_context: str, model: str = "mistral"
+) -> tuple[str, str]:
+    """Gera título (até 4 palavras) e subtítulo (pelo menos 5 palavras) com base no rumo recente do chat."""
+    prompt = (
+        f"Com base no seguinte resumo de conversa, gere:\n"
+        f"1) Um título curto (máximo 4 palavras).\n"
+        f"2) Um subtítulo descritivo (pelo menos 5 palavras).\n"
+        f"Responda em exatamente duas linhas: na primeira linha só o título, na segunda só o subtítulo. "
+        f"Sem prefixos como 'Título:' ou 'Subtítulo:'.\n\nResumo: {recent_context[:800]}"
+    )
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {"temperature": 0.3, "num_predict": 80},
+    }
+    try:
+        raw = await ollama_client.generate(payload)
+        response = (raw.get("response") or "").strip()
+        lines = [ln.strip() for ln in response.split("\n") if ln.strip()][:2]
+        title = " ".join((lines[0].split() if lines else [])[:4]) or "Conversa"
+        subtitle = " ".join((lines[1].split() if len(lines) > 1 else [])[:20]) or ""
+        if len(subtitle.split()) < 5 and subtitle:
+            subtitle = subtitle + " " + "conversa sobre o tema."
+        return title, subtitle
+    except Exception as exc:
+        logger.warning("Falha ao gerar título/subtítulo via Ollama: %s", exc)
+        return "Conversa", ""

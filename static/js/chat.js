@@ -10,8 +10,10 @@
   let messageHistory   = [];
   let abortController  = null;
   let isStreaming      = false;
-  let currentSessionId = null;   // ID da sessão ativa
-  let sessions         = [];     // lista das sessões do usuário
+  let currentSessionId   = null;   // ID da sessão ativa
+  let currentSessionTitle = null;  // título da sessão ativa (para o header)
+  let sessions           = [];     // lista das sessões do usuário
+  let currentUser        = null;   // { email, full_name } de /auth/me para displayName
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -55,6 +57,50 @@
     if (diffDays === 1) return 'Ontem';
     if (diffDays < 7) return d.toLocaleDateString('pt-BR', { weekday: 'short' });
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  }
+
+  function formatGroupLabel(isoStr) {
+    if (!isoStr) return 'Outras';
+    const d = new Date(isoStr);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diffDays = Math.floor((today - dayStart) / 86400000);
+    if (diffDays === 0) return 'Hoje';
+    if (diffDays === 1) return 'Ontem';
+    if (diffDays > 1 && diffDays < 7) return 'Esta semana';
+    return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  }
+
+  function groupSessionsForSidebar(list) {
+    const archived = list.filter(function (s) { return s.is_archived; });
+    const active = list.filter(function (s) { return !s.is_archived; });
+    const pinned = active.filter(function (s) { return s.is_pinned; });
+    const rest = active.filter(function (s) { return !s.is_pinned; });
+    const byLabel = {};
+    const order = [];
+    rest.forEach(function (s) {
+      const at = s.last_message_at || s.updated_at || s.created_at;
+      const label = formatGroupLabel(at);
+      if (!byLabel[label]) { byLabel[label] = []; order.push(label); }
+      byLabel[label].push(s);
+    });
+    return {
+      pinned: pinned,
+      groups: order.map(function (label) { return { label: label, sessions: byLabel[label] }; }),
+      archived: archived,
+    };
+  }
+
+  function showToast(msg, isError) {
+    const existing = document.getElementById('toast-msg');
+    if (existing) existing.remove();
+    const toast = document.createElement('div');
+    toast.id = 'toast-msg';
+    toast.className = 'toast-msg' + (isError ? ' toast-error' : '');
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(function () { toast.remove(); }, 3500);
   }
 
   // ── Streaming / estado de envio ───────────────────────────────────────────
@@ -152,22 +198,251 @@
     if (thinking) thinking.remove();
   }
 
+  // ── Empty state ──────────────────────────────────────────────────────────
+
+  function updateHeaderTitle() {
+    const titleEl = el('chat-header-title');
+    if (!titleEl) return;
+    if (currentSessionTitle) titleEl.textContent = currentSessionTitle;
+    else titleEl.textContent = 'Maggiore IA';
+  }
+
+  function getDisplayName() {
+    if (currentUser) {
+      const nick = (currentUser.nickname || '').trim();
+      if (nick) return nick;
+      const first = (currentUser.first_name || '').trim();
+      const last = (currentUser.last_name || '').trim();
+      if (first || last) return (first + ' ' + last).trim();
+      if (currentUser.full_name && currentUser.full_name.trim()) return currentUser.full_name.trim();
+      if (currentUser.email) return currentUser.email;
+    }
+    return 'você';
+  }
+
+  function updateEmptyState() {
+    const emptyState = el('empty-state');
+    const footer     = el('chat-footer');
+    const titleEl    = el('empty-state-title');
+    const isEmpty    = messageHistory.length === 0;
+
+    if (titleEl) titleEl.textContent = 'Como posso te ajudar, ' + getDisplayName() + '?';
+
+    if (emptyState) {
+      emptyState.setAttribute('aria-hidden', isEmpty ? 'false' : 'true');
+    }
+    if (footer) {
+      footer.classList.toggle('hidden-footer', isEmpty);
+    }
+  }
+
   // ── Sessões — sidebar ────────────────────────────────────────────────────
 
-  async function loadSessions() {
+  var archivedSessions = [];
+
+  async function loadSessions(searchQ) {
     const listEl = el('sessions-list');
     if (!listEl) return;
     listEl.innerHTML =
       '<div class="sessions-loading">' +
       '<div class="thinking-dots"><span></span><span></span><span></span></div></div>';
     try {
-      const res = await Auth.apiFetch('/v1/sessions?limit=30');
+      let url = '/v1/sessions?limit=50';
+      if (searchQ && searchQ.trim()) url += '&q=' + encodeURIComponent(searchQ.trim());
+      const res = await Auth.apiFetch(url);
       if (!res.ok) { sessions = []; }
       else { sessions = await res.json(); }
     } catch (_) {
       sessions = [];
     }
     renderSessionsSidebar();
+  }
+
+  async function loadArchivedSessions(searchQ) {
+    const listEl = document.getElementById('sessions-archived-list');
+    if (!listEl) return;
+    listEl.innerHTML = '<div class="sessions-loading"><div class="thinking-dots"><span></span><span></span><span></span></div></div>';
+    try {
+      let url = '/v1/sessions?limit=50&include_archived=true';
+      if (searchQ && searchQ.trim()) url += '&q=' + encodeURIComponent(searchQ.trim());
+      const res = await Auth.apiFetch(url);
+      if (!res.ok) { archivedSessions = []; }
+      else {
+        const all = await res.json();
+        archivedSessions = all.filter(function (s) { return s.is_archived; });
+      }
+    } catch (_) {
+      archivedSessions = [];
+    }
+    renderArchivedList();
+  }
+
+  function renderSessionItem(s, listEl, isArchived) {
+    const item = document.createElement('div');
+    item.className = 'session-item' + (s.id === currentSessionId ? ' active' : '') + (isArchived ? ' session-item-archived' : '');
+    item.setAttribute('data-session-id', s.id);
+
+    const at = s.last_message_at || s.updated_at || s.created_at;
+    const title = s.title || 'Conversa';
+    const chatIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+    const pencilIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+    const dotsIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>';
+
+    item.innerHTML =
+      '<div class="session-item-row">' +
+        '<div class="session-item-icon">' + chatIcon + '</div>' +
+        '<div class="session-item-text">' +
+          '<div class="session-item-title" data-title>' + escapeHtml(title) + '</div>' +
+          '<div class="session-item-date">' + formatDate(at) + '</div>' +
+        '</div>' +
+        '<div class="session-item-actions">' +
+          '<button type="button" class="session-item-btn-icon btn-rename" title="Renomear" aria-label="Renomear">' + pencilIcon + '</button>' +
+          '<button type="button" class="session-item-btn-icon btn-menu" title="Mais opções" aria-label="Mais opções">' + dotsIcon + '</button>' +
+        '</div>' +
+      '</div>';
+
+    const row = item.querySelector('.session-item-row');
+    const titleEl = item.querySelector('[data-title]');
+    const textBlock = item.querySelector('.session-item-text');
+
+    row.addEventListener('click', function (e) {
+      if (e.target.closest('.session-item-actions')) return;
+      openSession(s.id);
+    });
+
+    titleEl.addEventListener('dblclick', function (e) { e.stopPropagation(); startRename(s, item, titleEl, textBlock); });
+
+    item.querySelector('.btn-rename').addEventListener('click', function (e) { e.stopPropagation(); e.preventDefault(); startRename(s, item, titleEl, textBlock); });
+
+    item.querySelector('.btn-menu').addEventListener('click', function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      openContextMenu(s, e.currentTarget, item);
+    });
+
+    listEl.appendChild(item);
+  }
+
+  function startRename(s, item, titleEl, textBlock) {
+    const oldTitle = s.title || 'Conversa';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'session-item-title-edit';
+    input.value = oldTitle;
+    input.setAttribute('data-session-id', s.id);
+
+    function cancel() {
+      textBlock.innerHTML = '<div class="session-item-title" data-title>' + escapeHtml(oldTitle) + '</div><div class="session-item-date">' + formatDate(s.last_message_at || s.updated_at || s.created_at) + '</div>';
+      const newTitleEl = item.querySelector('[data-title]');
+      newTitleEl.addEventListener('dblclick', function (ev) { ev.stopPropagation(); startRename(s, item, newTitleEl, textBlock); });
+    }
+
+    function submit() {
+      const newTitle = input.value.trim() || 'Conversa';
+      Auth.apiFetch('/v1/sessions/' + s.id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle }),
+      }).then(function (res) {
+        if (!res.ok) throw new Error('Falha ao renomear');
+        return res.json();
+      }).then(function () {
+        s.title = newTitle;
+        textBlock.innerHTML = '<div class="session-item-title" data-title>' + escapeHtml(newTitle) + '</div><div class="session-item-date">' + formatDate(s.last_message_at || s.updated_at || s.created_at) + '</div>';
+        const newTitleEl = item.querySelector('[data-title]');
+        newTitleEl.addEventListener('dblclick', function (ev) { ev.stopPropagation(); startRename(s, item, newTitleEl, textBlock); });
+      }).catch(function () {
+        showToast('Não foi possível renomear. Tente novamente.', true);
+        cancel();
+      });
+    }
+
+    textBlock.innerHTML = '';
+    textBlock.appendChild(input);
+    input.focus();
+    input.select();
+
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); submit(); }
+      if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+    });
+    input.addEventListener('blur', function () { submit(); });
+  }
+
+  function openContextMenu(s, buttonEl, itemEl) {
+    const existing = document.getElementById('session-context-menu');
+    if (existing) existing.remove();
+
+    const menu = document.createElement('ul');
+    menu.id = 'session-context-menu';
+    menu.className = 'session-context-menu';
+    const rect = buttonEl.getBoundingClientRect();
+
+    const pinLabel = s.is_pinned ? 'Desafixar' : 'Fixar no topo';
+    const archiveLabel = s.is_archived ? 'Desarquivar conversa' : 'Arquivar conversa';
+    const archiveAction = s.is_archived ? 'unarchive' : 'archive';
+    menu.innerHTML =
+      '<li><button type="button" data-action="pin">' + pinLabel + '</button></li>' +
+      '<li><button type="button" data-action="' + archiveAction + '">' + archiveLabel + '</button></li>' +
+      '<li><button type="button" data-action="delete" class="danger">Excluir definitivamente</button></li>';
+
+    menu.style.left = rect.left + 'px';
+    menu.style.top = (rect.bottom + 4) + 'px';
+
+    function close() {
+      menu.remove();
+      document.removeEventListener('click', close);
+    }
+
+    function getSearchQ() {
+      var searchEl = document.getElementById('sessions-search');
+      return searchEl ? searchEl.value.trim() : '';
+    }
+
+    function refreshLists() {
+      loadSessions(getSearchQ());
+      var content = document.getElementById('sidebar-archived-content');
+      if (content && !content.hidden) {
+        loadArchivedSessions(getSearchQ());
+      }
+    }
+
+    menu.querySelector('[data-action="pin"]').addEventListener('click', function () {
+      close();
+      Auth.apiFetch('/v1/sessions/' + s.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_pinned: !s.is_pinned }) })
+        .then(function (res) { if (!res.ok) throw new Error(); return res.json(); })
+        .then(function () { refreshLists(); })
+        .catch(function () { showToast('Não foi possível atualizar.', true); });
+    });
+    (function () {
+      var archiveBtn = menu.querySelector('[data-action="archive"]');
+      var unarchiveBtn = menu.querySelector('[data-action="unarchive"]');
+      function doArchive(value) {
+        close();
+        Auth.apiFetch('/v1/sessions/' + s.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_archived: value }) })
+          .then(function (res) { if (!res.ok) throw new Error(); return res.json(); })
+          .then(function () {
+            if (currentSessionId === s.id) { newSession(); }
+            refreshLists();
+          })
+          .catch(function () { showToast(value ? 'Não foi possível arquivar.' : 'Não foi possível desarquivar.', true); });
+      }
+      if (archiveBtn) archiveBtn.addEventListener('click', function () { doArchive(true); });
+      if (unarchiveBtn) unarchiveBtn.addEventListener('click', function () { doArchive(false); });
+    })();
+    menu.querySelector('[data-action="delete"]').addEventListener('click', function () {
+      close();
+      Auth.apiFetch('/v1/sessions/' + s.id, { method: 'DELETE' })
+        .then(function (res) { if (!res.ok) throw new Error(); })
+        .then(function () {
+          if (currentSessionId === s.id) { newSession(); }
+          refreshLists();
+        })
+        .catch(function () { showToast('Não foi possível excluir.', true); });
+    });
+
+    document.body.appendChild(menu);
+    setTimeout(function () { document.addEventListener('click', close); }, 0);
   }
 
   function renderSessionsSidebar() {
@@ -180,21 +455,34 @@
       return;
     }
 
-    sessions.forEach(function (s) {
-      const item = document.createElement('div');
-      item.className = 'session-item' + (s.id === currentSessionId ? ' active' : '');
-      item.setAttribute('data-session-id', s.id);
-      item.innerHTML =
-        '<div class="session-item-icon">' +
-          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' +
-        '</div>' +
-        '<div class="session-item-text">' +
-          '<div class="session-item-title">' + escapeHtml(s.title || 'Conversa') + '</div>' +
-          '<div class="session-item-date">' + formatDate(s.updated_at) + '</div>' +
-        '</div>';
-      item.addEventListener('click', function () { openSession(s.id); });
-      listEl.appendChild(item);
+    const grouped = groupSessionsForSidebar(sessions);
+
+    if (grouped.pinned.length > 0) {
+      const label = document.createElement('p');
+      label.className = 'sessions-group-label';
+      label.textContent = 'Fixadas';
+      listEl.appendChild(label);
+      grouped.pinned.forEach(function (s) { renderSessionItem(s, listEl); });
+    }
+
+    grouped.groups.forEach(function (g) {
+      const label = document.createElement('p');
+      label.className = 'sessions-group-label';
+      label.textContent = g.label;
+      listEl.appendChild(label);
+      g.sessions.forEach(function (s) { renderSessionItem(s, listEl); });
     });
+  }
+
+  function renderArchivedList() {
+    const listEl = document.getElementById('sessions-archived-list');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    if (!archivedSessions || archivedSessions.length === 0) {
+      listEl.innerHTML = '<p class="sessions-empty">Nenhuma conversa arquivada.</p>';
+      return;
+    }
+    archivedSessions.forEach(function (s) { renderSessionItem(s, listEl, true); });
   }
 
   async function openSession(id) {
@@ -211,10 +499,13 @@
       const res = await Auth.apiFetch('/v1/sessions/' + id);
       if (!res.ok) { showError('Não foi possível carregar a conversa.'); return; }
       const data = await res.json();
+      currentSessionTitle = data.title || 'Conversa';
       messageHistory = (data.messages || []).map(function (m) {
         return { role: m.role, content: m.content };
       });
       renderMessages();
+      updateEmptyState();
+      updateHeaderTitle();
     } catch (err) {
       showError('Erro ao carregar a conversa.');
     }
@@ -224,11 +515,15 @@
 
   function newSession() {
     currentSessionId = null;
+    currentSessionTitle = null;
     messageHistory = [];
     renderMessages();
+    updateEmptyState();
     renderSessionsSidebar(); // remove destaque de todos
     const input = el('message-input');
-    if (input) { input.value = ''; input.focus(); }
+    const emptyInput = el('empty-state-input');
+    if (input) input.value = '';
+    if (emptyInput) { emptyInput.value = ''; emptyInput.focus(); }
     closeSidebar();
   }
 
@@ -318,6 +613,15 @@
     });
   }
 
+  function syncPickerFace() {
+    const hiddenInput = el('model-select');
+    const nameEl      = el('model-picker-name');
+    if (!nameEl || !hiddenInput) return;
+    const id = hiddenInput.value;
+    const m = (window._modelsList || []).find(function (x) { return (x.id || x.name) === id; });
+    nameEl.textContent = m ? (m.name || m.id) : id || 'Modelo';
+  }
+
   function openPicker() {
     const dropdown = el('model-dropdown');
     const trigger  = el('model-picker-trigger');
@@ -347,10 +651,34 @@
       const data   = await res.json();
       const all    = Array.isArray(data) ? data : (data.models || []);
       const active = all.filter(function (m) { return m && m.active !== false; });
-      buildPicker(active.length ? active : []);
+      window._modelsList = active.length ? active : [{ id: 'mistral', name: 'Mistral' }];
+      buildPicker(window._modelsList);
     } catch (err) {
       showError('Erro ao carregar modelos: ' + (err.message || ''));
+      window._modelsList = [{ id: 'mistral', name: 'Mistral' }];
       buildPicker([]);
+    }
+  }
+
+  function applySavedPrefs() {
+    const PREFS_KEY = 'maggiore_prefs';
+    let prefs = {};
+    try { prefs = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}'); } catch (_) {}
+    if (prefs.defaultModel && el('model-select')) {
+      el('model-select').value = prefs.defaultModel;
+      syncPickerFace();
+    }
+    if (prefs.defaultTheme && prefs.defaultTheme !== 'system') {
+      document.documentElement.setAttribute('data-theme', prefs.defaultTheme);
+      const iconSun = el('icon-sun'); const iconMoon = el('icon-moon');
+      if (iconSun) iconSun.style.display = prefs.defaultTheme === 'dark' ? 'none' : '';
+      if (iconMoon) iconMoon.style.display = prefs.defaultTheme === 'dark' ? '' : 'none';
+    } else if (prefs.defaultTheme === 'system') {
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+      const iconSun = el('icon-sun'); const iconMoon = el('icon-moon');
+      if (iconSun) iconSun.style.display = prefersDark ? 'none' : '';
+      if (iconMoon) iconMoon.style.display = prefersDark ? '' : 'none';
     }
   }
 
@@ -367,11 +695,15 @@
     appendAssistantBubble();
     showError('');
     setStreaming(true);
+    updateEmptyState(); // esconde empty state e mostra footer assim que há mensagens
 
-    const modelSel  = el('model-select');
-    const tempSlider = el('temperature-slider');
+    const modelSel = el('model-select');
+    let temp = 0.7;
+    try {
+      const prefs = JSON.parse(localStorage.getItem('maggiore_prefs') || '{}');
+      if (prefs.defaultTemperature != null) temp = parseFloat(prefs.defaultTemperature);
+    } catch (_) {}
     const model = (modelSel && modelSel.value) ? modelSel.value : 'mistral';
-    const temp  = tempSlider ? (parseFloat(tempSlider.value) || 0.7) : 0.7;
 
     const toSend = messageHistory.slice(0, -1).map(function (m) {
       return { role: m.role, content: m.content };
@@ -408,6 +740,7 @@
       // Captura session_id do header (modo streaming)
       const headerSessionId = res.headers.get('X-Session-Id');
       if (headerSessionId) currentSessionId = parseInt(headerSessionId);
+      updateHeaderTitle();
 
       const reader  = res.body.getReader();
       const decoder = new TextDecoder();
@@ -469,8 +802,11 @@
       abortController = null;
       const input = el('message-input');
       if (input) input.focus();
-      // Recarrega a sidebar para refletir nova sessão ou updated_at atualizado
+      // Recarrega a sidebar para refletir nova sessão e título atualizado pela API
       await loadSessions();
+      var sess = sessions && sessions.find(function (x) { return x.id === currentSessionId; });
+      if (sess && sess.title) currentSessionTitle = sess.title;
+      updateHeaderTitle();
     }
   }
 
@@ -484,6 +820,16 @@
     input.value = '';
     autoResizeTextarea(input);
     sendMessage(msg);
+  }
+
+  function submitMessageFromEmptyState() {
+    const input = el('empty-state-input');
+    if (!input) return;
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+    sendMessage(msg);
+    updateEmptyState();
   }
 
   function autoResizeTextarea(textarea) {
@@ -503,23 +849,217 @@
       return;
     }
 
-    // Slider de temperatura
-    const tempSlider = el('temperature-slider');
-    if (tempSlider) {
-      tempSlider.addEventListener('input', function () {
-        const label = el('temp-value');
-        if (label) label.textContent = tempSlider.value;
+    // User dropdown
+    const btnUserMenu = el('btn-user-menu');
+    const userDropdown = el('user-dropdown');
+    if (btnUserMenu && userDropdown) {
+      btnUserMenu.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const open = userDropdown.getAttribute('aria-hidden') !== 'false';
+        userDropdown.setAttribute('aria-hidden', open ? 'false' : 'true');
+        btnUserMenu.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+      document.addEventListener('click', function () {
+        userDropdown.setAttribute('aria-hidden', 'true');
+        btnUserMenu.setAttribute('aria-expanded', 'false');
+      });
+      userDropdown.addEventListener('click', function (e) {
+        const item = e.target.closest('[data-action]');
+        if (!item) return;
+        const action = item.getAttribute('data-action');
+        userDropdown.setAttribute('aria-hidden', 'true');
+        btnUserMenu.setAttribute('aria-expanded', 'false');
+        if (action === 'profile') openModalProfile();
+        else if (action === 'prefs') openModalPrefs();
+        else if (action === 'logout') doLogout();
       });
     }
 
-    // Logout
-    const logoutBtn = el('btn-logout');
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', function () {
-        Auth.clearToken();
-        window.location.href = '/static/login.html';
-      });
+    function doLogout() {
+      Auth.clearToken();
+      window.location.href = '/static/login.html';
     }
+
+    function openModalProfile() {
+      const modal = el('modal-profile');
+      if (!modal) return;
+      const emailInput = el('profile-email');
+      if (emailInput) emailInput.value = currentUser ? (currentUser.email || '') : '';
+      const fn = el('profile-first-name'); const ln = el('profile-last-name');
+      const nick = el('profile-nickname'); const bio = el('profile-bio');
+      if (fn) fn.value = currentUser ? (currentUser.first_name || '') : '';
+      if (ln) ln.value = currentUser ? (currentUser.last_name || '') : '';
+      if (nick) nick.value = currentUser ? (currentUser.nickname || '') : '';
+      if (bio) bio.value = currentUser ? (currentUser.bio || '') : '';
+      const cp = el('profile-current-password'); const np = el('profile-new-password');
+      if (cp) cp.value = ''; if (np) np.value = '';
+      modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeModalProfile() {
+      const modal = el('modal-profile');
+      if (modal) modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function saveProfile() {
+      const fn = el('profile-first-name'); const ln = el('profile-last-name');
+      const nick = el('profile-nickname'); const bio = el('profile-bio');
+      const payload = {};
+      if (fn) payload.first_name = fn.value.trim() || null;
+      if (ln) payload.last_name = ln.value.trim() || null;
+      if (nick) payload.nickname = nick.value.trim() || null;
+      if (bio) payload.bio = bio.value.trim() || null;
+      Auth.apiFetch('/auth/me', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        .then(function (res) { if (!res.ok) throw new Error('Falha ao salvar'); return res.json(); })
+        .then(function (user) {
+          currentUser = { email: user.email, full_name: user.full_name, first_name: user.first_name, last_name: user.last_name, nickname: user.nickname, bio: user.bio };
+          const displayEl = el('user-email');
+          if (displayEl) displayEl.textContent = getDisplayName();
+          closeModalProfile();
+          showToast('Perfil salvo.');
+        })
+        .catch(function () { showToast('Não foi possível salvar o perfil.', true); });
+    }
+
+    function doChangePassword() {
+      const cur = el('profile-current-password'); const neu = el('profile-new-password');
+      if (!cur || !neu || !cur.value.trim() || !neu.value.trim()) {
+        showToast('Preencha senha atual e nova senha.', true);
+        return;
+      }
+      Auth.apiFetch('/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_password: cur.value, new_password: neu.value }),
+      })
+        .then(function (res) { if (!res.ok) throw new Error(); })
+        .then(function () {
+          cur.value = ''; neu.value = '';
+          showToast('Senha alterada.');
+        })
+        .catch(function () { showToast('Senha atual incorreta ou erro ao alterar.', true); });
+    }
+
+    function openModalPrefs() {
+      const modal = el('modal-prefs');
+      if (!modal) return;
+      const PREFS_KEY = 'maggiore_prefs';
+      let prefs = {};
+      try { prefs = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}'); } catch (_) {}
+      const modelDrop = el('pref-model-dropdown');
+      const modelName = el('pref-model-name');
+      const modelVal = el('pref-model-value');
+      const themeName = el('pref-theme-name');
+      const themeVal = el('pref-theme-value');
+      const themeDrop = el('pref-theme-dropdown');
+      const tempSlider = el('pref-temperature');
+      const tempVal = el('pref-temperature-value');
+
+      if (modelDrop) {
+        modelDrop.innerHTML = '';
+        (window._modelsList || []).forEach(function (m) {
+          const id = m.id || m.name; const name = m.name || m.id;
+          const li = document.createElement('li');
+          li.className = 'model-dropdown-item' + ((prefs.defaultModel || 'mistral') === id ? ' selected' : '');
+          li.setAttribute('data-value', id);
+          li.setAttribute('role', 'option');
+          li.textContent = name;
+          li.addEventListener('click', function () {
+            if (modelVal) modelVal.value = id;
+            if (modelName) modelName.textContent = name;
+            modelDrop.querySelectorAll('.model-dropdown-item').forEach(function (x) { x.classList.toggle('selected', x.getAttribute('data-value') === id); });
+            modelDrop.classList.remove('open');
+          });
+          modelDrop.appendChild(li);
+        });
+      }
+      if (modelVal) modelVal.value = prefs.defaultModel || 'mistral';
+      if (modelName) {
+        const m = (window._modelsList || []).find(function (x) { return (x.id || x.name) === (prefs.defaultModel || 'mistral'); });
+        modelName.textContent = m ? (m.name || m.id) : (prefs.defaultModel || 'Mistral');
+      }
+      if (themeVal) themeVal.value = prefs.defaultTheme || 'system';
+      const themeLabels = { light: 'Claro', dark: 'Escuro', system: 'Seguir sistema' };
+      if (themeName) themeName.textContent = themeLabels[prefs.defaultTheme || 'system'] || 'Seguir sistema';
+
+      if (tempSlider) tempSlider.value = prefs.defaultTemperature != null ? prefs.defaultTemperature : 0.7;
+      if (tempVal) tempVal.textContent = tempSlider ? tempSlider.value : '0.7';
+      tempSlider && tempSlider.addEventListener('input', function () { if (tempVal) tempVal.textContent = tempSlider.value; });
+
+      const openModelDrop = function () {
+        themeDrop && themeDrop.classList.remove('open');
+        modelDrop && modelDrop.classList.toggle('open');
+      };
+      const openThemeDrop = function () {
+        modelDrop && modelDrop.classList.remove('open');
+        themeDrop && themeDrop.classList.toggle('open');
+      };
+      el('pref-model-trigger') && el('pref-model-trigger').addEventListener('click', function (e) { e.stopPropagation(); openModelDrop(); });
+      el('pref-theme-trigger') && el('pref-theme-trigger').addEventListener('click', function (e) { e.stopPropagation(); openThemeDrop(); });
+      themeDrop && themeDrop.querySelectorAll('.model-dropdown-item').forEach(function (li) {
+        li.addEventListener('click', function () {
+          const v = li.getAttribute('data-value');
+          if (themeVal) themeVal.value = v;
+          if (themeName) themeName.textContent = li.textContent;
+          themeDrop.classList.remove('open');
+        });
+      });
+
+      modal.setAttribute('aria-hidden', 'false');
+    }
+
+    document.addEventListener('click', function () {
+      const md = el('pref-model-dropdown'); const td = el('pref-theme-dropdown');
+      if (md) md.classList.remove('open');
+      if (td) td.classList.remove('open');
+    });
+
+    function closeModalPrefs() {
+      const modal = el('modal-prefs');
+      if (modal) modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function savePrefs() {
+      const PREFS_KEY = 'maggiore_prefs';
+      const modelVal = el('pref-model-value');
+      const tempSlider = el('pref-temperature');
+      const themeVal = el('pref-theme-value');
+      const prefs = {
+        defaultModel: modelVal ? modelVal.value : 'mistral',
+        defaultTemperature: tempSlider ? parseFloat(tempSlider.value) : 0.7,
+        defaultTheme: themeVal ? themeVal.value : 'system',
+      };
+      try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (_) {}
+      if (el('model-select')) el('model-select').value = prefs.defaultModel;
+      if (el('model-picker-name')) {
+        const name = (window._modelsList || []).find(function (m) { return (m.id || m.name) === prefs.defaultModel; });
+        if (name) el('model-picker-name').textContent = name.name || name.id;
+      }
+      if (prefs.defaultTheme && prefs.defaultTheme !== 'system') {
+        document.documentElement.setAttribute('data-theme', prefs.defaultTheme);
+        const iconSun = el('icon-sun'); const iconMoon = el('icon-moon');
+        if (iconSun) iconSun.style.display = prefs.defaultTheme === 'dark' ? 'none' : '';
+        if (iconMoon) iconMoon.style.display = prefs.defaultTheme === 'dark' ? '' : 'none';
+      } else if (prefs.defaultTheme === 'system') {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+        const iconSun = el('icon-sun'); const iconMoon = el('icon-moon');
+        if (iconSun) iconSun.style.display = prefersDark ? 'none' : '';
+        if (iconMoon) iconMoon.style.display = prefersDark ? '' : 'none';
+      }
+      closeModalPrefs();
+      showToast('Preferências salvas.');
+    }
+
+    el('profile-save-btn') && el('profile-save-btn').addEventListener('click', saveProfile);
+    el('profile-close-btn') && el('profile-close-btn').addEventListener('click', closeModalProfile);
+    el('profile-change-password-btn') && el('profile-change-password-btn').addEventListener('click', doChangePassword);
+    el('modal-profile') && el('modal-profile').querySelector('.profile-modal-close') && el('modal-profile').querySelector('.profile-modal-close').addEventListener('click', closeModalProfile);
+    el('modal-profile') && el('modal-profile').querySelector('.modal-backdrop') && el('modal-profile').querySelector('.modal-backdrop').addEventListener('click', closeModalProfile);
+
+    el('prefs-save-btn') && el('prefs-save-btn').addEventListener('click', savePrefs);
+    el('modal-prefs') && el('modal-prefs').querySelector('.modal-close') && el('modal-prefs').querySelector('.modal-close').addEventListener('click', closeModalPrefs);
+    el('modal-prefs') && el('modal-prefs').querySelector('.modal-backdrop') && el('modal-prefs').querySelector('.modal-backdrop').addEventListener('click', closeModalPrefs);
 
     // Formulário de envio
     const form = el('chat-form');
@@ -541,6 +1081,52 @@
     // Nova conversa
     const btnNew = el('btn-new-session');
     if (btnNew) btnNew.addEventListener('click', newSession);
+
+    // Busca na sidebar (debounce 300ms)
+    const searchInput = el('sessions-search');
+    if (searchInput) {
+      let searchDebounce;
+      searchInput.addEventListener('input', function () {
+        clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(function () { loadSessions(searchInput.value); }, 300);
+      });
+    }
+
+    // Sanfona Arquivadas: ao expandir, carrega conversas arquivadas na primeira vez
+    const archivedTrigger = document.getElementById('sidebar-archived-trigger');
+    const archivedContent = document.getElementById('sidebar-archived-content');
+    if (archivedTrigger && archivedContent) {
+      archivedTrigger.addEventListener('click', function () {
+        var expanded = archivedTrigger.getAttribute('aria-expanded') === 'true';
+        if (!expanded) {
+          archivedTrigger.setAttribute('aria-expanded', 'true');
+          archivedContent.removeAttribute('hidden');
+          loadArchivedSessions(searchInput ? searchInput.value.trim() : '');
+        } else {
+          archivedTrigger.setAttribute('aria-expanded', 'false');
+          archivedContent.setAttribute('hidden', '');
+        }
+      });
+    }
+
+    // Sidebar recolhível + localStorage
+    const SIDEBAR_COLLAPSED_KEY = 'maggiore_sidebar_collapsed';
+    const sidebarEl = document.getElementById('sidebar');
+    const btnToggleSidebar = el('btn-toggle-sidebar');
+    function setSidebarCollapsed(collapsed) {
+      if (sidebarEl) sidebarEl.classList.toggle('sidebar-collapsed', collapsed);
+      try { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch (_) {}
+      if (btnToggleSidebar) btnToggleSidebar.title = collapsed ? 'Expandir menu' : 'Recolher menu';
+    }
+    if (btnToggleSidebar) {
+      btnToggleSidebar.addEventListener('click', function () {
+        setSidebarCollapsed(sidebarEl ? !sidebarEl.classList.contains('sidebar-collapsed') : false);
+      });
+    }
+    try {
+      const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+      setSidebarCollapsed(saved === '1');
+    } catch (_) {}
 
     // Sidebar (mobile)
     const btnOpen  = el('btn-open-sidebar');
@@ -580,12 +1166,36 @@
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePicker(); });
 
+    // Formulário do empty state
+    const emptyForm = el('empty-state-form');
+    if (emptyForm) {
+      emptyForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        submitMessageFromEmptyState();
+      });
+    }
+    const emptyInput = el('empty-state-input');
+    if (emptyInput) {
+      emptyInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitMessageFromEmptyState(); }
+      });
+      emptyInput.addEventListener('input', function () { autoResizeTextarea(emptyInput); });
+    }
+
     // Carrega usuário, modelos e sessões
     try {
       const user = await loadUser();
       if (!user) { window.location.href = '/static/login.html'; return; }
-      const emailEl = el('user-email');
-      if (emailEl) emailEl.textContent = user.email || '';
+      currentUser = {
+        email: user.email || '',
+        full_name: user.full_name || null,
+        first_name: user.first_name || null,
+        last_name: user.last_name || null,
+        nickname: user.nickname || null,
+        bio: user.bio || null,
+      };
+      const displayEl = el('user-email');
+      if (displayEl) displayEl.textContent = getDisplayName();
       await loadModels();
       await loadSessions();
 
@@ -593,6 +1203,8 @@
       if (sessions && sessions.length > 0) {
         await openSession(sessions[0].id);
       }
+      applySavedPrefs();
+      updateEmptyState();
     } catch (err) {
       showError(err.message || 'Erro ao inicializar.');
     }

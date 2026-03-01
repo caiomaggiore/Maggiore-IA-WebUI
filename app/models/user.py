@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, func
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, func
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -16,7 +16,11 @@ class User(Base):
 
     id              = Column(Integer, primary_key=True, index=True)
     email           = Column(String(255), unique=True, index=True, nullable=False)
-    full_name       = Column(String(255), nullable=True)
+    full_name       = Column(String(255), nullable=True)  # mantido para compat
+    first_name      = Column(String(128), nullable=True)
+    last_name       = Column(String(128), nullable=True)
+    nickname        = Column(String(128), nullable=True)
+    bio             = Column(Text, nullable=True)
     hashed_password = Column(String(255), nullable=False)
     is_active       = Column(Boolean, nullable=False, server_default="true")
     created_at      = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -38,17 +42,41 @@ class UserSchema(BaseModel):
                     "id": 1,
                     "email": "admin@example.com",
                     "full_name": "Admin",
+                    "first_name": "Admin",
+                    "last_name": "",
+                    "nickname": None,
+                    "bio": None,
                     "is_active": True,
                 }
             ]
         },
     )
 
-    id: int
-    email: str
-    full_name: str | None = None
-    is_active: bool
+    id:         int
+    email:      str
+    full_name:  str | None = None
+    first_name: str | None = None
+    last_name:  str | None = None
+    nickname:   str | None = None
+    bio:        str | None = None
+    is_active:  bool
     created_at: datetime | None = None
+
+
+class ProfileUpdate(BaseModel):
+    """Payload para atualizar perfil (PATCH /auth/me)."""
+
+    first_name: str | None = None
+    last_name:  str | None = None
+    nickname:   str | None = None
+    bio:        str | None = None
+
+
+class ChangePasswordRequest(BaseModel):
+    """Payload para trocar senha."""
+
+    current_password: str
+    new_password:     str
 
 
 class TokenResponse(BaseModel):

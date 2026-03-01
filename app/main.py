@@ -13,12 +13,35 @@ import app.models  # noqa: F401 — registra todos os ORM no metadata antes do c
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 
+def _ensure_chat_sessions_columns():
+    """Adiciona colunas novas em chat_sessions se não existirem (evita quebrar DBs existentes)."""
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        for stmt in [
+            "ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL",
+            "ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS subtitle TEXT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(128) NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(128) NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS nickname VARCHAR(128) NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT NULL",
+        ]:
+            try:
+                conn.execute(text(stmt))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                # Coluna já existe ou tabela não existe ainda (create_all cria depois)
+                pass
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Inicializa recursos na subida e libera no encerramento."""
     setup_logging()
     # Cria tabelas que ainda não existem (dev). Trocar por Alembic em produção.
     Base.metadata.create_all(bind=engine)
+    _ensure_chat_sessions_columns()
     yield
 
 

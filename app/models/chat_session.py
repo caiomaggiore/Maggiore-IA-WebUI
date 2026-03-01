@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -16,8 +16,11 @@ class ChatSession(Base):
 
     id          = Column(Integer, primary_key=True, index=True)
     user_id     = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
-    title       = Column(String(255), nullable=True)
+    title       = Column(Text, nullable=True)  # nome de exibição (até 4 palavras)
+    subtitle    = Column(Text, nullable=True)  # subtítulo (5+ palavras, após 5ª msg)
     is_archived = Column(Boolean, nullable=False, server_default="false")
+    is_pinned   = Column(Boolean, nullable=False, server_default="false")
+    deleted_at  = Column(DateTime(timezone=True), nullable=True)  # soft delete
     created_at  = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -41,6 +44,9 @@ class ChatSessionSchema(BaseModel):
     id:          int
     user_id:     int
     title:       str | None = None
+    subtitle:    str | None = None
     is_archived: bool
+    is_pinned:   bool = False
+    deleted_at:  datetime | None = None
     created_at:  datetime
     updated_at:  datetime

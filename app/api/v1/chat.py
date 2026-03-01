@@ -14,7 +14,10 @@ from app.crud.chat import (
     create_chat_session,
     get_session_with_messages,
     list_sessions_for_user,
+    soft_delete_session,
+    update_session,
 )
+from app.services import chat_service as chat_svc
 from app.models.chat_message import ChatMessageSchema
 from app.models.chat_session import ChatSessionSchema
 from app.models.user import UserSchema as User
@@ -122,6 +125,25 @@ def _session_title(messages: list[Message]) -> str:
     return last[:80]
 
 
+async def _maybe_update_session_title(db: Session, session_id: int, model: str) -> None:
+    """Se for a primeira resposta (2 msgs) gera título; se >= 5 trocas (10 msgs) gera título + subtítulo."""
+    from app.models.chat_session import ChatSession
+    sess = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not sess:
+        return
+    msgs = list(sess.messages) if sess.messages else []
+    n = len(msgs)
+    if n == 2:
+        first_user = next((m.content for m in msgs if m.role == "user"), "")
+        if first_user:
+            title = await chat_svc.generate_session_title(first_user, model)
+            update_session(db, session_id, sess.user_id, title=title)
+    elif n >= 10:
+        recent = " ".join(m.content or "" for m in msgs[-6:])[:800]
+        title, subtitle = await chat_svc.generate_session_title_and_subtitle(recent, model)
+        update_session(db, session_id, sess.user_id, title=title, subtitle=subtitle)
+
+
 def _resolve_session(db: Session, request: ChatRequest, user_id: int) -> int:
     """Valida ou cria a sessão; retorna o session_id."""
     if request.session_id is not None:
@@ -162,7 +184,7 @@ async def _stream_with_persistence(
             pass
         yield chunk
 
-    # Stream concluído — persiste a resposta da IA
+    # Stream concluído — persiste a resposta da IA e opcionalmente gera/atualiza título
     content = "".join(full_content)
     if content:
         db = SessionLocal()
@@ -175,6 +197,7 @@ async def _stream_with_persistence(
                 model=model,
                 temperature=temperature,
             )
+            _maybe_update_session_title(db, session_id, model)
         except Exception as exc:
             logger.error("Erro ao persistir mensagem de streaming: %s", exc)
         finally:
@@ -258,6 +281,7 @@ async def chat(
             temperature=temperature,
             token_usage=token_usage,
         )
+        await _maybe_update_session_title(db, session_id, result.get("model", request.model))
 
     return {
         "session_id": session_id,
@@ -268,14 +292,26 @@ async def chat(
 # ── Endpoints de sessões ──────────────────────────────────────────────────────
 
 class SessionListItem(BaseModel):
-    """Item resumido na listagem de sessões."""
+    """Item na listagem de sessões (com preview da última mensagem)."""
 
-    model_config = ConfigDict(from_attributes=True)
+    id:                   int
+    title:                str | None = None
+    subtitle:             str | None = None
+    created_at:           str
+    updated_at:           str
+    is_archived:          bool = False
+    is_pinned:            bool = False
+    last_message_preview: str | None = None
+    last_message_at:      str
 
-    id:         int
-    title:      str | None = None
-    created_at: str
-    updated_at: str
+
+class SessionPatchBody(BaseModel):
+    """Campos opcionais para PATCH em sessão."""
+
+    title:       str | None = None
+    subtitle:    str | None = None
+    is_pinned:   bool | None = None
+    is_archived: bool | None = None
 
 
 class SessionWithMessages(BaseModel):
@@ -285,21 +321,84 @@ class SessionWithMessages(BaseModel):
 
     id:          int
     title:       str | None = None
+    subtitle:    str | None = None
     is_archived: bool
+    is_pinned:   bool = False
     created_at:  str
     updated_at:  str
     messages:    list[ChatMessageSchema]
 
 
-@router.get("/sessions", response_model=list[ChatSessionSchema])
+@router.get("/sessions", response_model=list[SessionListItem])
 async def list_sessions(
-    limit: int = 20,
+    q: str | None = None,
+    include_archived: bool = False,
+    limit: int = 50,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Retorna as últimas sessões ativas do usuário atual, ordenadas pela mais recente."""
-    sessions = list_sessions_for_user(db, user_id=current_user.id, limit=limit)
-    return [ChatSessionSchema.model_validate(s) for s in sessions]
+    """Lista sessões do usuário. Filtra por busca (q), arquivadas (include_archived). Ignora soft-deleted."""
+    rows = list_sessions_for_user(
+        db,
+        user_id=current_user.id,
+        limit=limit,
+        include_archived=include_archived,
+        q=q,
+    )
+    return [
+        SessionListItem(
+            id=r["id"],
+            title=r["title"],
+            subtitle=r.get("subtitle"),
+            created_at=r["created_at"].isoformat(),
+            updated_at=r["updated_at"].isoformat(),
+            is_archived=r["is_archived"],
+            is_pinned=r["is_pinned"],
+            last_message_preview=r.get("last_message_preview"),
+            last_message_at=r["last_message_at"].isoformat(),
+        )
+        for r in rows
+    ]
+
+
+@router.patch("/sessions/{session_id}", response_model=ChatSessionSchema)
+async def patch_session(
+    session_id: int,
+    body: SessionPatchBody,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Atualiza título, is_pinned ou is_archived da sessão (apenas campos enviados)."""
+    session = update_session(
+        db,
+        session_id=session_id,
+        user_id=current_user.id,
+        title=body.title,
+        subtitle=body.subtitle,
+        is_pinned=body.is_pinned,
+        is_archived=body.is_archived,
+    )
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Sessão não encontrada",
+        )
+    return ChatSessionSchema.model_validate(session)
+
+
+@router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_session(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Soft delete da sessão (deleted_at = now())."""
+    ok = soft_delete_session(db, session_id=session_id, user_id=current_user.id)
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Sessão não encontrada",
+        )
 
 
 @router.get("/sessions/{session_id}", response_model=SessionWithMessages)
@@ -322,7 +421,9 @@ async def get_session(
     return SessionWithMessages(
         id=session.id,
         title=session.title,
+        subtitle=getattr(session, "subtitle", None),
         is_archived=session.is_archived,
+        is_pinned=getattr(session, "is_pinned", False),
         created_at=session.created_at.isoformat(),
         updated_at=session.updated_at.isoformat(),
         messages=[ChatMessageSchema.model_validate(m) for m in session.messages],

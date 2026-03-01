@@ -15,20 +15,39 @@
       <div class="sidebar-header">
         <span class="sidebar-brand">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-          Maggiore IA
+          <span class="sidebar-brand-text">Maggiore IA</span>
         </span>
-        <button type="button" id="btn-close-sidebar" class="btn-icon-sm sidebar-close" title="Fechar sidebar" aria-label="Fechar sidebar">
+        <button type="button" id="btn-close-sidebar" class="btn-icon-sm sidebar-close" title="Fechar menu (mobile)" aria-label="Fechar menu">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <button type="button" id="btn-toggle-sidebar" class="btn-icon-sm sidebar-toggle" title="Recolher menu" aria-label="Recolher menu">
+          <svg class="icon-expanded" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <svg class="icon-collapsed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </div>
 
       <button type="button" id="btn-new-session" class="btn-new-session">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Nova conversa
+        <span class="btn-new-session-text">Nova conversa</span>
       </button>
 
+      <div class="sidebar-search-wrap">
+        <input type="text" id="sessions-search" class="sidebar-search" placeholder="Buscar conversas…" aria-label="Buscar conversas">
+      </div>
+
+      <div class="sidebar-archived-accordion" id="sidebar-archived-accordion" aria-expanded="false">
+        <button type="button" class="sidebar-archived-trigger" id="sidebar-archived-trigger" aria-controls="sidebar-archived-content" aria-expanded="false">
+          <span class="sidebar-archived-label">Arquivadas</span>
+          <svg class="sidebar-archived-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div id="sidebar-archived-content" class="sidebar-archived-content" role="region" aria-labelledby="sidebar-archived-trigger" hidden>
+          <div id="sessions-archived-list" class="sessions-list sessions-archived-list">
+            <!-- preenchido ao expandir -->
+          </div>
+        </div>
+      </div>
+
       <nav class="sessions-nav">
-        <p class="sessions-nav-label">Conversas recentes</p>
         <div id="sessions-list" class="sessions-list">
           <!-- preenchido pelo JS -->
         </div>
@@ -39,17 +58,13 @@
     <div class="chat-layout">
 
       <header class="chat-header">
-        <!-- Toggle sidebar (mobile) -->
-        <button type="button" id="btn-open-sidebar" class="btn-icon-sm" title="Abrir histórico" aria-label="Abrir histórico">
+        <!-- Abrir sidebar (apenas mobile) -->
+        <button type="button" id="btn-open-sidebar" class="btn-icon-sm btn-open-sidebar-mobile" title="Abrir histórico" aria-label="Abrir histórico">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
 
-        <h1>Maggiore IA</h1>
-
-        <div class="header-controls">
-
-          <!-- Model picker -->
-          <div class="model-picker" id="model-picker-wrap">
+        <!-- Model picker (à esquerda do título) -->
+        <div class="model-picker" id="model-picker-wrap">
             <button type="button" class="model-picker-trigger" id="model-picker-trigger" aria-haspopup="listbox" aria-expanded="false">
               <div class="model-picker-icon">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -70,33 +85,53 @@
             <input type="hidden" id="model-select" value="mistral">
           </div>
 
-          <!-- Temperatura -->
-          <div class="temp-group">
-            <span class="temp-label">Temp.</span>
-            <input type="range" id="temperature-slider" min="0" max="1" step="0.1" value="0.7" aria-label="Temperatura">
-            <span class="temp-value-badge" id="temp-value">0.7</span>
-          </div>
+        <h1 id="chat-header-title">Maggiore IA</h1>
 
-          <!-- Usuário -->
+        <div class="header-controls">
+
+          <!-- Usuário: dropdown -->
           <div class="user-menu">
-            <span id="user-email" class="user-email"></span>
+            <button type="button" id="btn-user-menu" class="btn-user-trigger" aria-haspopup="true" aria-expanded="false" aria-label="Menu do usuário">
+              <span id="user-email" class="user-email"></span>
+              <svg class="user-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div id="user-dropdown" class="user-dropdown" role="menu" aria-hidden="true">
+              <button type="button" class="user-dropdown-item" data-action="profile" role="menuitem">Perfil</button>
+              <button type="button" class="user-dropdown-item" data-action="prefs" role="menuitem">Preferências</button>
+              <button type="button" class="user-dropdown-item user-dropdown-item-danger" data-action="logout" role="menuitem">Sair</button>
+            </div>
             <button type="button" id="btn-theme" class="btn-icon-sm" title="Alternar tema" aria-label="Alternar tema">
               <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
               <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
             </button>
-            <button type="button" id="btn-logout" class="btn-logout">Sair</button>
           </div>
 
         </div>
       </header>
 
       <main class="chat-messages" id="chat-messages">
+        <div id="empty-state" class="empty-state" aria-hidden="true">
+          <div class="empty-state-inner">
+            <h2 id="empty-state-title" class="empty-state-title">Como posso te ajudar?</h2>
+            <p id="empty-state-subtitle" class="empty-state-subtitle">Pergunte qualquer coisa. A IA vai responder em seguida.</p>
+            <form id="empty-state-form" class="empty-state-form">
+              <div class="chat-input-wrap empty-state-input-wrap">
+                <textarea id="empty-state-input" placeholder="Digite sua mensagem…" rows="1"></textarea>
+                <div class="chat-actions">
+                  <button type="submit" class="btn-send" title="Enviar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
         <div id="chat-log"></div>
       </main>
 
       <p id="api-error" class="chat-error"></p>
 
-      <footer class="chat-footer">
+      <footer class="chat-footer" id="chat-footer">
         <div class="chat-footer-inner">
           <form id="chat-form" class="chat-input-wrap">
             <textarea id="message-input" placeholder="Digite sua mensagem…" rows="1"></textarea>
@@ -122,6 +157,107 @@
 
     <!-- Overlay para fechar sidebar no mobile -->
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Modal Perfil -->
+    <div id="modal-profile" class="modal" role="dialog" aria-labelledby="modal-profile-title" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-box">
+        <div class="modal-header">
+          <h2 id="modal-profile-title">Perfil</h2>
+          <button type="button" class="modal-close profile-modal-close" aria-label="Fechar">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="profile-email">E-mail</label>
+            <input type="text" id="profile-email" readonly class="input-readonly">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="profile-first-name">Nome</label>
+              <input type="text" id="profile-first-name" placeholder="Nome" maxlength="128">
+            </div>
+            <div class="form-group">
+              <label for="profile-last-name">Sobrenome</label>
+              <input type="text" id="profile-last-name" placeholder="Sobrenome" maxlength="128">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="profile-nickname">Apelido</label>
+            <input type="text" id="profile-nickname" placeholder="Apelido" maxlength="128">
+          </div>
+          <div class="form-group">
+            <label for="profile-bio">Bio</label>
+            <textarea id="profile-bio" placeholder="Um pouco sobre você (pode ser usado na memória depois)" rows="3" maxlength="1000"></textarea>
+          </div>
+          <div class="modal-section">
+            <h3 class="modal-section-title">Segurança</h3>
+            <div class="form-group">
+              <label for="profile-current-password">Senha atual</label>
+              <input type="password" id="profile-current-password" placeholder="Senha atual" autocomplete="current-password">
+            </div>
+            <div class="form-group">
+              <label for="profile-new-password">Nova senha</label>
+              <input type="password" id="profile-new-password" placeholder="Nova senha" autocomplete="new-password">
+            </div>
+            <button type="button" class="btn-secondary" id="profile-change-password-btn">Trocar senha</button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-primary" id="profile-save-btn">Salvar</button>
+          <button type="button" class="btn-secondary" id="profile-close-btn">Fechar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Preferências (estilo igual ao dropdown do modelo) -->
+    <div id="modal-prefs" class="modal" role="dialog" aria-labelledby="modal-prefs-title" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-box modal-prefs-box">
+        <div class="modal-header">
+          <h2 id="modal-prefs-title">Preferências</h2>
+          <button type="button" class="modal-close modal-prefs-close" aria-label="Fechar">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="pref-model">Modelo padrão</label>
+            <div class="pref-model-picker">
+              <button type="button" class="model-picker-trigger pref-trigger" id="pref-model-trigger" aria-haspopup="listbox" aria-expanded="false">
+                <div class="model-picker-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div>
+                <div class="model-picker-label"><div class="model-name" id="pref-model-name">Carregando…</div><div class="model-sub">Modelo de linguagem</div></div>
+                <div class="model-picker-chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
+              </button>
+              <ul class="model-dropdown pref-dropdown" id="pref-model-dropdown" role="listbox"></ul>
+              <input type="hidden" id="pref-model-value" value="">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="pref-temperature">Temperatura padrão</label>
+            <div class="pref-temperature-wrap">
+              <input type="range" id="pref-temperature" min="0" max="1" step="0.1" value="0.7">
+              <span id="pref-temperature-value" class="pref-value">0.7</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="pref-theme">Tema padrão</label>
+            <div class="pref-theme-picker">
+              <button type="button" class="model-picker-trigger pref-trigger" id="pref-theme-trigger" aria-haspopup="listbox" aria-expanded="false">
+                <div class="model-picker-label"><div class="model-name" id="pref-theme-name">Seguir sistema</div><div class="model-sub">Aparência</div></div>
+                <div class="model-picker-chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
+              </button>
+              <ul class="model-dropdown pref-dropdown" id="pref-theme-dropdown" role="listbox">
+                <li class="model-dropdown-item" data-value="light" role="option">Claro</li>
+                <li class="model-dropdown-item" data-value="dark" role="option">Escuro</li>
+                <li class="model-dropdown-item" data-value="system" role="option">Seguir sistema</li>
+              </ul>
+              <input type="hidden" id="pref-theme-value" value="system">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-primary" id="prefs-save-btn">Salvar</button>
+        </div>
+      </div>
+    </div>
 
   </div><!-- .layout -->
 

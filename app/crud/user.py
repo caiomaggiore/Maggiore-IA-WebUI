@@ -2,7 +2,7 @@ import logging
 
 from sqlalchemy.orm import Session
 
-from app.core.security import hash_password
+from app.core.security import hash_password, verify_password
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -41,3 +41,44 @@ def create_user(
     db.refresh(user)
     logger.info("Usuário criado: id=%s email=%s", user.id, user.email)
     return user
+
+
+def update_user_profile(
+    db: Session,
+    user_id: int,
+    *,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    nickname: str | None = None,
+    bio: str | None = None,
+) -> User | None:
+    """Atualiza campos de perfil do usuário. Retorna o usuário ou None."""
+    user = db.get(User, user_id)
+    if user is None:
+        return None
+    if first_name is not None:
+        user.first_name = first_name
+    if last_name is not None:
+        user.last_name = last_name
+    if nickname is not None:
+        user.nickname = nickname
+    if bio is not None:
+        user.bio = bio
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def change_password(
+    db: Session,
+    user_id: int,
+    current_password: str,
+    new_password: str,
+) -> bool:
+    """Troca a senha do usuário. Retorna True se ok, False se senha atual inválida."""
+    user = db.get(User, user_id)
+    if not user or not verify_password(current_password, user.hashed_password):
+        return False
+    user.hashed_password = hash_password(new_password)
+    db.commit()
+    return True

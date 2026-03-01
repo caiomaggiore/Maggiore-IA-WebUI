@@ -7,8 +7,14 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import authenticate_user, create_access_token, decode_token
-from app.crud.user import get_user_by_id
-from app.models.user import LoginRequest, TokenResponse, UserSchema
+from app.crud.user import change_password, get_user_by_id, update_user_profile
+from app.models.user import (
+    ChangePasswordRequest,
+    LoginRequest,
+    ProfileUpdate,
+    TokenResponse,
+    UserSchema,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -68,3 +74,38 @@ async def login(body: LoginRequest, db: DbSession) -> TokenResponse:
 async def me(current_user: UserSchema = Depends(get_current_user)) -> UserSchema:
     """Retorna os dados do usuário autenticado."""
     return current_user
+
+
+@router.patch("/me", response_model=UserSchema)
+async def update_me(
+    body: ProfileUpdate,
+    db: DbSession,
+    current_user: UserSchema = Depends(get_current_user),
+) -> UserSchema:
+    """Atualiza perfil (nome, sobrenome, apelido, bio)."""
+    user = update_user_profile(
+        db,
+        current_user.id,
+        first_name=body.first_name,
+        last_name=body.last_name,
+        nickname=body.nickname,
+        bio=body.bio,
+    )
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado")
+    return UserSchema.model_validate(user)
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password_endpoint(
+    body: ChangePasswordRequest,
+    db: DbSession,
+    current_user: UserSchema = Depends(get_current_user),
+):
+    """Troca a senha do usuário. Requer senha atual e nova senha."""
+    ok = change_password(db, current_user.id, body.current_password, body.new_password)
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Senha atual incorreta",
+        )
