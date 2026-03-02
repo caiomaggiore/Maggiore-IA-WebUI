@@ -107,7 +107,8 @@
 
   function setStreaming(active) {
     isStreaming = active;
-    const actions = document.querySelector('.chat-actions');
+    const footer = document.getElementById('chat-footer');
+    const actions = footer ? footer.querySelector('.chat-actions') : null;
     const textarea = el('message-input');
     if (actions) actions.classList.toggle('is-streaming', active);
     if (textarea) textarea.disabled = active;

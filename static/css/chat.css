@@ -1591,7 +1591,7 @@ html, body {
   background: var(--bg-card);
   border: 1.5px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 10px 4px 10px 18px;
+  padding: 10px 18px 10px 18px;
   transition: border-color 0.2s, box-shadow 0.2s;
   box-shadow: var(--shadow-sm);
 }
@@ -1636,7 +1636,7 @@ html, body {
 }
 
 .chat-input-row-config {
-  padding-top: 2px;
+  padding-top: 10px;
   border-top: 1px solid var(--border);
 }
 
@@ -1690,6 +1690,16 @@ html, body {
   align-items: center;
   justify-content: center;
   color: inherit;
+}
+
+.thinking-toggle-brain-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  background-color: var(--brain-icon-color);
+  mask: url("/static/image/brain-solid-full.svg") no-repeat center / contain;
+  -webkit-mask: url("/static/image/brain-solid-full.svg") no-repeat center / contain;
 }
 
 .thinking-level-picker {
@@ -1906,15 +1916,19 @@ html, body {
 
 /* ── Botões de ação (enviar / parar) ─────────────────────────────────────── */
 
+/* Um único “slot”: enviar e parar sobrepostos, sem espaço extra quando parar está oculto */
 .chat-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  position: relative;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
 }
 
 .chat-actions .btn-send,
 .chat-actions .btn-stop {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 40px;
   height: 40px;
   min-width: 40px;
@@ -1929,7 +1943,6 @@ html, body {
   border-radius: 50%;
   border: none;
   cursor: pointer;
-  flex-shrink: 0;
   overflow: hidden;
   transition: opacity 0.18s ease, transform 0.18s ease, background 0.18s ease;
 }
