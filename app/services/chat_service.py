@@ -161,29 +161,39 @@ THINKING_LEVELS = ("esperto", "inteligente", "culto", "sabio")
 
 
 def _thinking_prompt_and_options(level: str) -> tuple[str, int]:
-    """Retorna instrução extra para o prompt e num_predict conforme o nível."""
+    """Retorna instrução extra para o prompt e num_predict conforme o nível.
+
+    Esperto: reflexão mínima, só o necessário para uma resposta coerente.
+    Inteligente: reflexão um pouco maior, vocabulário melhor, lógico e prático.
+    Culto: mais reflexão, referências (ex.: literárias), vocabulário rebuscado, profundidade.
+    Sábio: junta os três e ainda sabedoria, papel de mestre, conselhos e ensinamentos.
+    """
     level = (level or "inteligente").lower().strip()
     if level not in THINKING_LEVELS:
         level = "inteligente"
     if level == "esperto":
         return (
-            "Seja objetivo e direto. Em 1-2 frases: intenção e um ponto central.",
+            "Você é um pensador objetivo. Não alongue: em 1 a 2 frases, capture a intenção do usuário e um único ponto central. "
+            "O objetivo é só refletir o necessário para uma resposta coerente e direta.",
             80,
         )
     if level == "inteligente":
         return (
-            "Em 2-3 frases: intenção do usuário, tópicos principais e uma suposição útil. Sem listas longas.",
-            150,
+            "Você é um pensador lógico e prático. Em 2 a 4 frases, analise a intenção do usuário, os tópicos principais e uma conclusão útil. "
+            "Use vocabulário claro e seja estruturado, sem listas longas.",
+            180,
         )
     if level == "culto":
         return (
-            "Em um parágrafo curto e bem escrito: intenção, contexto relevante, tópicos chave e premissas. Linguagem clara.",
-            220,
+            "Você é um pensador culto. Em um parágrafo bem escrito, analise a intenção, o contexto relevante e as premissas. "
+            "Pode trazer referências (literárias, filosóficas ou culturais) quando fizer sentido. Use vocabulário rebuscado e profundidade.",
+            280,
         )
-    # sabio
+    # sabio: esperto + inteligente + culto + sabedoria, mestre, conselhos
     return (
-        "Em um parágrafo denso e reflexivo: intenção profunda, contexto amplo, temas e premissas. Pode citar nuances.",
-        320,
+        "Você é um sábio: objetivo, lógico, culto e, acima de tudo, sábio. Reflita com profundidade: intenção do usuário, contexto amplo, temas e premissas. "
+        "Inclua referências quando enriquecerem a análise. Pense como um mestre que vai orientar com conselhos e ensinamentos; a reflexão deve sustentar essa voz.",
+        400,
     )
 
 
@@ -215,3 +225,53 @@ async def run_thinking_planner(
     except Exception as exc:
         logger.warning("Falha no thinking planner: %s", exc)
         return "Análise indisponível."
+
+
+async def run_thinking_planner_stream(
+    user_message: str, level: str, model: str = "mistral"
+):
+    """
+    Versão em stream do planner: gera tokens e retorna (full_text, thinking_time_ms).
+    Útil para o frontend mostrar o pensamento em tempo real.
+    """
+    import time
+    instruction, num_predict = _thinking_prompt_and_options(level)
+    prompt = (
+        f"Você é um planejador interno. Analise a mensagem do usuário e produza apenas um resumo de análise.\n"
+        f"{instruction}\n"
+        f"Não liste passos, não use bullet points longos. Uma única resposta em prosa.\n\n"
+        f"Mensagem do usuário:\n{user_message[:2000]}"
+    )
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": True,
+        "options": {"temperature": 0.4, "num_predict": num_predict},
+    }
+    t0 = time.perf_counter()
+    full_parts = []
+    buffer = b""
+    try:
+        async for chunk in ollama_client.generate_stream(payload):
+            buffer += chunk
+            while b"\n" in buffer:
+                line, buffer = buffer.split(b"\n", 1)
+                line_str = line.decode("utf-8", errors="replace").strip()
+                if not line_str:
+                    continue
+                try:
+                    import json
+                    data = json.loads(line_str)
+                    token = data.get("response", "")
+                    if token:
+                        full_parts.append(token)
+                        yield ("token", token)
+                except Exception:
+                    pass
+        full_text = "".join(full_parts).strip()[:1500] if full_parts else "Análise não disponível."
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        yield ("analysis", {"full": full_text, "thinking_time_ms": elapsed_ms, "level": level})
+    except Exception as exc:
+        logger.warning("Falha no thinking planner stream: %s", exc)
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        yield ("analysis", {"full": "Análise indisponível.", "thinking_time_ms": elapsed_ms, "level": level})

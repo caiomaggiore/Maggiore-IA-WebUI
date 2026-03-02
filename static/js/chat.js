@@ -1,5 +1,5 @@
 /**
- * chat.js — Maggiore IA Chat
+ * chat.js — Aurion IA Chat
  * Depende de auth.js (objeto Auth global)
  */
 (function () {
@@ -120,6 +120,9 @@
     if (!container) return;
     container.innerHTML = '';
     messageHistory.forEach(function (msg) {
+      if (msg.role === 'assistant' && msg.thinking_summary) {
+        container.appendChild(buildThinkingBlockFromMessage(msg));
+      }
       container.appendChild(buildBubble(msg.role, msg.content));
     });
     if (isStreaming) {
@@ -135,6 +138,31 @@
       }
     }
     scrollBottom();
+  }
+
+  function buildThinkingBlockFromMessage(msg) {
+    var timeMs = msg.thinking_time_ms || 0;
+    var secs = (timeMs / 1000).toFixed(1);
+    var summaryHtml = formatThinkingSummaryAsParagraphs(msg.thinking_summary || '');
+    var wrap = document.createElement('div');
+    wrap.className = 'chat-message assistant';
+    wrap.innerHTML =
+      '<div class="chat-thinking-block" data-thinking-block>' +
+        '<div class="chat-thinking-header">' +
+          '<span class="chat-thinking-status"><span class="chat-thinking-status-text">Pensado por ' + secs + 's</span></span>' +
+          '<button type="button" class="chat-thinking-chevron-btn" data-toggle-analysis aria-label="Expandir pensamento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>' +
+        '</div>' +
+        '<div class="chat-thinking-body"><div class="chat-thinking-summary" data-summary>' + summaryHtml + '</div></div>' +
+      '</div>';
+    var block = wrap.querySelector('[data-thinking-block]');
+    var btn = block && block.querySelector('[data-toggle-analysis]');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        block.classList.toggle('expanded');
+        btn.setAttribute('aria-label', block.classList.contains('expanded') ? 'Recolher pensamento' : 'Expandir pensamento');
+      });
+    }
+    return wrap;
   }
 
   function buildBubble(role, content) {
@@ -159,16 +187,29 @@
 
   var currentThinkingBlock = null;
 
-  function appendAssistantBubble() {
+  function formatThinkingSummaryAsParagraphs(text) {
+    if (!text) return '';
+    var paras = text.split(/\n\n+/);
+    return paras.map(function (p) { return '<p>' + escapeHtml(p.trim()) + '</p>'; }).join('');
+  }
+
+  function appendAssistantBubble(thinkingActive) {
     currentThinkingBlock = null;
     const container = el('chat-log');
     if (!container) return;
     const thinkingWrap = document.createElement('div');
     thinkingWrap.className = 'chat-message assistant';
     thinkingWrap.id = 'thinking-wrap';
-    thinkingWrap.innerHTML =
-      '<div class="thinking-indicator">IA está respondendo' +
-      '<span class="thinking-dots"><span></span><span></span><span></span></span></div>';
+    if (thinkingActive) {
+      thinkingWrap.innerHTML =
+        '<div class="thinking-indicator">' +
+        '<span class="chat-thinking-atom"><span class="chat-thinking-brain-icon" role="img" aria-hidden="true"></span></span>' +
+        '<span class="chat-thinking-status-text pensando-shine">Pensando</span></div>';
+    } else {
+      thinkingWrap.innerHTML =
+        '<div class="thinking-indicator">IA está respondendo' +
+        '<span class="thinking-dots"><span></span><span></span><span></span></span></div>';
+    }
     container.appendChild(thinkingWrap);
     const bubble = buildBubble('assistant', '');
     bubble.id = 'assistant-bubble-active';
@@ -177,41 +218,87 @@
     scrollBottom();
   }
 
+  function ensureThinkingBlockAndAppendToken(token) {
+    var wrap = el('thinking-wrap');
+    if (!wrap) return;
+    var block = wrap.querySelector('[data-thinking-block]');
+    if (!block) {
+      wrap.className = 'chat-message assistant';
+      wrap.id = 'thinking-wrap';
+      wrap.innerHTML =
+        '<div class="chat-thinking-block" data-thinking-block>' +
+          '<div class="chat-thinking-header">' +
+            '<span class="chat-thinking-status"><span class="chat-thinking-atom"><span class="chat-thinking-brain-icon" role="img" aria-hidden="true"></span></span><span class="chat-thinking-status-text pensando-shine">Pensando</span></span>' +
+            '<button type="button" class="chat-thinking-chevron-btn" data-toggle-analysis aria-label="Expandir pensamento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>' +
+          '</div>' +
+          '<div class="chat-thinking-body"><div class="chat-thinking-summary" data-summary></div></div>' +
+        '</div>';
+      block = wrap.querySelector('[data-thinking-block]');
+      var chevronBtn = block.querySelector('[data-toggle-analysis]');
+      if (chevronBtn) {
+        chevronBtn.addEventListener('click', function () {
+          block.classList.toggle('expanded');
+          chevronBtn.setAttribute('aria-label', block.classList.contains('expanded') ? 'Recolher pensamento' : 'Expandir pensamento');
+        });
+      }
+      block.classList.add('expanded');
+      currentThinkingBlock = block;
+    }
+    var summaryEl = block.querySelector('[data-summary]');
+    if (summaryEl) summaryEl.innerHTML += escapeHtml(token);
+    scrollBottom();
+  }
+
   function showThinkingAnalysis(data) {
     const wrap = el('thinking-wrap');
     if (!wrap) return;
     var timeMs = data.thinking_time_ms || 0;
-    var level = (data.thinking_level || 'inteligente').toLowerCase();
-    var levelLabels = { esperto: 'Esperto', inteligente: 'Inteligente', culto: 'Culto', sabio: 'Sábio' };
-    var levelLabel = levelLabels[level] || data.thinking_level || 'Inteligente';
-    wrap.className = 'chat-message assistant';
-    wrap.id = 'thinking-wrap';
-    wrap.innerHTML =
-      '<div class="chat-thinking-block" data-thinking-block>' +
-        '<div class="chat-thinking-header">' +
-          '<span class="chat-thinking-status"><span class="chat-thinking-emoji">🔍</span> <span class="chat-thinking-status-text">Pensando…</span> <span class="chat-thinking-timer" data-timer>' + (timeMs / 1000).toFixed(1) + 's</span></span>' +
-          '<button type="button" class="chat-thinking-toggle-btn" data-toggle-analysis>Ver análise</button>' +
-        '</div>' +
-        '<div class="chat-thinking-summary" data-summary>' + escapeHtml(data.analysis_summary || '') + '</div>' +
-      '</div>';
+    var secs = (timeMs / 1000).toFixed(1);
+    var summaryHtml = formatThinkingSummaryAsParagraphs(data.analysis_summary || '');
     var block = wrap.querySelector('[data-thinking-block]');
-    var btn = wrap.querySelector('[data-toggle-analysis]');
-    if (btn) {
-      btn.addEventListener('click', function () {
-        block.classList.toggle('expanded');
-        btn.textContent = block.classList.contains('expanded') ? 'Ocultar análise' : 'Ver análise';
-      });
+    if (block) {
+      var statusWrap = block.querySelector('.chat-thinking-status');
+      if (statusWrap) {
+        statusWrap.innerHTML = '<span class="chat-thinking-status-text">Pensado por ' + secs + 's</span>';
+      }
+      var summaryEl = block.querySelector('[data-summary]');
+      if (summaryEl) summaryEl.innerHTML = summaryHtml || summaryEl.innerHTML;
+      block.classList.remove('expanded');
+      var chevronBtn = block.querySelector('[data-toggle-analysis]');
+      if (chevronBtn) chevronBtn.setAttribute('aria-label', 'Expandir pensamento');
+    } else {
+      wrap.className = 'chat-message assistant';
+      wrap.id = 'thinking-wrap';
+      wrap.innerHTML =
+        '<div class="chat-thinking-block" data-thinking-block>' +
+          '<div class="chat-thinking-header">' +
+            '<span class="chat-thinking-status"><span class="chat-thinking-status-text">Pensado por ' + secs + 's</span></span>' +
+            '<button type="button" class="chat-thinking-chevron-btn" data-toggle-analysis aria-label="Expandir pensamento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>' +
+          '</div>' +
+          '<div class="chat-thinking-body"><div class="chat-thinking-summary" data-summary>' + summaryHtml + '</div></div>' +
+        '</div>';
+      block = wrap.querySelector('[data-thinking-block]');
+      var btn = block.querySelector('[data-toggle-analysis]');
+      if (btn) {
+        btn.addEventListener('click', function () {
+          block.classList.toggle('expanded');
+          btn.setAttribute('aria-label', block.classList.contains('expanded') ? 'Recolher pensamento' : 'Expandir pensamento');
+        });
+      }
     }
-    currentThinkingBlock = block;
+    currentThinkingBlock = null;
     scrollBottom();
   }
 
   function finishThinkingStatus() {
     if (currentThinkingBlock) {
       var statusText = currentThinkingBlock.querySelector('.chat-thinking-status-text');
-      var btn = currentThinkingBlock.querySelector('[data-toggle-analysis]');
-      if (statusText) statusText.textContent = 'Pensamento concluído';
-      if (btn) btn.textContent = 'Ver análise';
+      if (statusText && statusText.classList.contains('pensando-shine')) {
+        var timeEl = currentThinkingBlock.querySelector('[data-timer]');
+        var secs = timeEl ? timeEl.textContent : '0';
+        statusText.classList.remove('pensando-shine');
+        statusText.textContent = 'Pensado por ' + secs;
+      }
       currentThinkingBlock = null;
     }
   }
@@ -244,7 +331,8 @@
     const bubble = el('assistant-bubble-active');
     if (bubble) bubble.removeAttribute('id');
     const thinking = el('thinking-wrap');
-    if (thinking) thinking.remove();
+    if (thinking && !thinking.querySelector('.chat-thinking-block')) thinking.remove();
+    else if (thinking) thinking.removeAttribute('id');
   }
 
   // ── Empty state ──────────────────────────────────────────────────────────
@@ -253,7 +341,7 @@
     const titleEl = el('chat-header-title');
     if (!titleEl) return;
     if (currentSessionTitle) titleEl.textContent = currentSessionTitle;
-    else titleEl.textContent = 'Maggiore IA';
+    else titleEl.innerHTML = '<span class="brand-aurion">Aurion</span> <span class="brand-ia">IA</span>';
   }
 
   function getDisplayName() {
@@ -267,6 +355,24 @@
       if (currentUser.email) return currentUser.email;
     }
     return 'você';
+  }
+
+  function getInitials() {
+    if (!currentUser) return '?';
+    const name = getDisplayName();
+    if (name === (currentUser.email || '')) return name.charAt(0).toUpperCase();
+    var parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    return name.charAt(0).toUpperCase();
+  }
+
+  function updateSidebarUser() {
+    var nameEl = el('sidebar-user-name');
+    var emailEl = el('sidebar-user-email');
+    var avatarEl = el('sidebar-user-avatar');
+    if (nameEl) nameEl.textContent = getDisplayName();
+    if (emailEl) emailEl.textContent = currentUser ? (currentUser.email || '') : '';
+    if (avatarEl) avatarEl.textContent = getInitials();
   }
 
   function updateEmptyState() {
@@ -550,7 +656,13 @@
       const data = await res.json();
       currentSessionTitle = data.title || 'Conversa';
       messageHistory = (data.messages || []).map(function (m) {
-        return { role: m.role, content: m.content };
+        return {
+          role: m.role,
+          content: m.content,
+          thinking_summary: m.thinking_summary || null,
+          thinking_time_ms: m.thinking_time_ms != null ? m.thinking_time_ms : null,
+          thinking_level: m.thinking_level || null
+        };
       });
       renderMessages();
       updateEmptyState();
@@ -581,7 +693,10 @@
   function openSidebar() {
     const sidebar  = document.getElementById('sidebar');
     const overlay  = el('sidebar-overlay');
-    if (sidebar)  sidebar.classList.add('open');
+    if (sidebar) {
+      sidebar.classList.add('open');
+      if (window.innerWidth <= 768) sidebar.classList.remove('sidebar-collapsed');
+    }
     if (overlay)  overlay.classList.add('visible');
   }
 
@@ -740,8 +855,22 @@
   async function sendMessage(userMsg) {
     messageHistory.push({ role: 'user', content: userMsg });
     messageHistory.push({ role: 'assistant', content: '' });
+
+    var thinkingEnabled = false;
+    var thinkingLevel = 'inteligente';
+    var cb = el('thinking-enabled');
+    var sel = el('thinking-level');
+    var emptyInput = el('empty-state-input');
+    if (emptyInput && document.activeElement === emptyInput) {
+      var cbEmpty = el('thinking-enabled-empty');
+      var selEmpty = el('thinking-level-empty');
+      if (cbEmpty && cbEmpty.checked) { thinkingEnabled = true; if (selEmpty) thinkingLevel = selEmpty.value || 'inteligente'; }
+    } else {
+      if (cb && cb.checked) { thinkingEnabled = true; if (sel) thinkingLevel = (sel && sel.value) ? sel.value : 'inteligente'; }
+    }
+
     appendUserBubble(userMsg);
-    appendAssistantBubble();
+    appendAssistantBubble(thinkingEnabled);
     showError('');
     setStreaming(true);
     updateEmptyState(); // esconde empty state e mostra footer assim que há mensagens
@@ -764,18 +893,6 @@
     }, 90000);
 
     try {
-      var thinkingEnabled = false;
-      var thinkingLevel = 'inteligente';
-      var cb = el('thinking-enabled');
-      var sel = el('thinking-level');
-      var emptyInput = el('empty-state-input');
-      if (emptyInput && document.activeElement === emptyInput) {
-        var cbEmpty = el('thinking-enabled-empty');
-        var selEmpty = el('thinking-level-empty');
-        if (cbEmpty && cbEmpty.checked) { thinkingEnabled = true; if (selEmpty) thinkingLevel = selEmpty.value || 'inteligente'; }
-      } else {
-        if (cb && cb.checked) { thinkingEnabled = true; if (sel) thinkingLevel = sel.value || 'inteligente'; }
-      }
 
       const body = {
         model: model,
@@ -819,7 +936,15 @@
           if (!line) continue;
           try {
             const obj = JSON.parse(line);
-            if (obj.type === 'analysis') {
+            if (obj.type === 'thinking_token') {
+              ensureThinkingBlockAndAppendToken(obj.token || '');
+            } else if (obj.type === 'analysis') {
+              var lastMsg = messageHistory[messageHistory.length - 1];
+              if (lastMsg && lastMsg.role === 'assistant') {
+                lastMsg.thinking_summary = obj.analysis_summary || '';
+                lastMsg.thinking_time_ms = obj.thinking_time_ms;
+                lastMsg.thinking_level = obj.thinking_level || null;
+              }
               showThinkingAnalysis(obj);
               try {
                 var key = 'maggiore_thinking_' + (currentSessionId || 'new');
@@ -840,7 +965,15 @@
       if (buffer.trim()) {
         try {
           const obj = JSON.parse(buffer);
-          if (obj.type === 'analysis') {
+          if (obj.type === 'thinking_token') {
+            ensureThinkingBlockAndAppendToken(obj.token || '');
+          } else if (obj.type === 'analysis') {
+            var lastMsg = messageHistory[messageHistory.length - 1];
+            if (lastMsg && lastMsg.role === 'assistant') {
+              lastMsg.thinking_summary = obj.analysis_summary || '';
+              lastMsg.thinking_time_ms = obj.thinking_time_ms;
+              lastMsg.thinking_level = obj.thinking_level || null;
+            }
             showThinkingAnalysis(obj);
             try {
               var key = 'maggiore_thinking_' + (currentSessionId || 'new');
@@ -959,6 +1092,58 @@
       });
     }
 
+    // Sidebar footer: perfil e configurações
+    const btnSidebarUser = el('btn-sidebar-user');
+    const sidebarUserDropdown = el('sidebar-user-dropdown');
+    const sidebarEl = document.getElementById('sidebar');
+    function positionSidebarDropdownOutside() {
+      if (!sidebarEl || !sidebarEl.classList.contains('sidebar-collapsed')) return;
+      var r = btnSidebarUser.getBoundingClientRect();
+      sidebarUserDropdown.classList.add('sidebar-user-dropdown-outside');
+      sidebarUserDropdown.style.left = (r.right + 8) + 'px';
+      sidebarUserDropdown.style.bottom = (window.innerHeight - r.top + 8) + 'px';
+      sidebarUserDropdown.style.top = 'auto';
+    }
+    function clearSidebarDropdownOutside() {
+      if (!sidebarUserDropdown) return;
+      sidebarUserDropdown.classList.remove('sidebar-user-dropdown-outside');
+      sidebarUserDropdown.style.left = '';
+      sidebarUserDropdown.style.top = '';
+      sidebarUserDropdown.style.bottom = '';
+    }
+    if (btnSidebarUser && sidebarUserDropdown) {
+      btnSidebarUser.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const open = sidebarUserDropdown.getAttribute('aria-hidden') !== 'false';
+        if (open) {
+          sidebarUserDropdown.setAttribute('aria-hidden', 'false');
+          btnSidebarUser.setAttribute('aria-expanded', 'true');
+          positionSidebarDropdownOutside();
+        } else {
+          sidebarUserDropdown.setAttribute('aria-hidden', 'true');
+          btnSidebarUser.setAttribute('aria-expanded', 'false');
+          clearSidebarDropdownOutside();
+        }
+      });
+      document.addEventListener('click', function (e) {
+        if (e.target.closest('.sidebar-user-wrap')) return;
+        sidebarUserDropdown.setAttribute('aria-hidden', 'true');
+        btnSidebarUser.setAttribute('aria-expanded', 'false');
+        clearSidebarDropdownOutside();
+      });
+      sidebarUserDropdown.addEventListener('click', function (e) {
+        const item = e.target.closest('.sidebar-user-dropdown-item[data-action]');
+        if (!item) return;
+        const action = item.getAttribute('data-action');
+        sidebarUserDropdown.setAttribute('aria-hidden', 'true');
+        btnSidebarUser.setAttribute('aria-expanded', 'false');
+        clearSidebarDropdownOutside();
+        if (action === 'profile') openModalProfile();
+        else if (action === 'prefs') openModalPrefs();
+        else if (action === 'logout') doLogout();
+      });
+    }
+
     function doLogout() {
       Auth.clearToken();
       window.location.href = '/static/login.html';
@@ -999,6 +1184,7 @@
           currentUser = { email: user.email, full_name: user.full_name, first_name: user.first_name, last_name: user.last_name, nickname: user.nickname, bio: user.bio };
           const displayEl = el('user-email');
           if (displayEl) displayEl.textContent = getDisplayName();
+          updateSidebarUser();
           closeModalProfile();
           showToast('Perfil salvo.');
         })
@@ -1149,24 +1335,61 @@
     const form = el('chat-form');
     if (form) form.addEventListener('submit', function (e) { e.preventDefault(); submitMessage(); });
 
-    // Sincronizar controles Thinking (footer e empty state)
+    // Thinking level picker (dropup) e sincronizar footer ↔ empty state
     (function () {
-      var cb = el('thinking-enabled');
-      var sel = el('thinking-level');
-      var cbEmpty = el('thinking-enabled-empty');
-      var selEmpty = el('thinking-level-empty');
-      function syncFromFooter() {
+      var levelLabels = { esperto: 'Esperto', inteligente: 'Inteligente', culto: 'Culto', sabio: 'Sábio' };
+      var otherHidden = { 'thinking-level': 'thinking-level-empty', 'thinking-level-empty': 'thinking-level' };
+      var otherName = { 'thinking-level': 'thinking-level-name-empty', 'thinking-level-empty': 'thinking-level-name' };
+      function setLevel(hiddenId, nameId, value, trigger, listEl) {
+        var hidden = document.getElementById(hiddenId);
+        var nameEl = document.getElementById(nameId);
+        if (hidden) hidden.value = value;
+        if (nameEl) nameEl.textContent = levelLabels[value] || value;
+        if (listEl) listEl.classList.remove('open');
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        var oHidden = document.getElementById(otherHidden[hiddenId]);
+        var oName = document.getElementById(otherName[hiddenId]);
+        if (oHidden) oHidden.value = value;
+        if (oName) oName.textContent = levelLabels[value] || value;
+      }
+      function setupLevelPicker(triggerId, dropdownId, hiddenId, nameId) {
+        var trigger = document.getElementById(triggerId);
+        var listEl = document.getElementById(dropdownId);
+        if (!trigger || !listEl) return;
+        trigger.addEventListener('click', function (e) {
+          e.stopPropagation();
+          listEl.classList.toggle('open');
+          trigger.setAttribute('aria-expanded', listEl.classList.contains('open'));
+        });
+        listEl.querySelectorAll('.thinking-level-item').forEach(function (li) {
+          li.addEventListener('click', function () {
+            setLevel(hiddenId, nameId, li.getAttribute('data-value') || 'inteligente', trigger, listEl);
+          });
+        });
+      }
+      setupLevelPicker('thinking-level-trigger', 'thinking-level-dropdown', 'thinking-level', 'thinking-level-name');
+      setupLevelPicker('thinking-level-trigger-empty', 'thinking-level-dropdown-empty', 'thinking-level-empty', 'thinking-level-name-empty');
+
+      function syncThinkingFromFooter() {
+        var cb = el('thinking-enabled');
+        var cbEmpty = el('thinking-enabled-empty');
+        var hidden = el('thinking-level');
+        var hiddenEmpty = el('thinking-level-empty');
+        var nameEmpty = el('thinking-level-name-empty');
         if (cbEmpty) cbEmpty.checked = cb ? cb.checked : false;
-        if (selEmpty && sel) selEmpty.value = sel.value;
+        if (hiddenEmpty && hidden) { hiddenEmpty.value = hidden.value; if (nameEmpty) nameEmpty.textContent = levelLabels[hidden.value] || hidden.value; }
       }
-      function syncFromEmpty() {
+      function syncThinkingFromEmpty() {
+        var cb = el('thinking-enabled');
+        var cbEmpty = el('thinking-enabled-empty');
+        var hidden = el('thinking-level');
+        var hiddenEmpty = el('thinking-level-empty');
+        var nameEl = el('thinking-level-name');
         if (cb) cb.checked = cbEmpty ? cbEmpty.checked : false;
-        if (sel && selEmpty) sel.value = selEmpty.value;
+        if (hidden && hiddenEmpty) { hidden.value = hiddenEmpty.value; if (nameEl) nameEl.textContent = levelLabels[hiddenEmpty.value] || hiddenEmpty.value; }
       }
-      if (cb) cb.addEventListener('change', syncFromFooter);
-      if (sel) sel.addEventListener('change', syncFromFooter);
-      if (cbEmpty) cbEmpty.addEventListener('change', syncFromEmpty);
-      if (selEmpty) selEmpty.addEventListener('change', syncFromEmpty);
+      el('thinking-enabled') && el('thinking-enabled').addEventListener('change', syncThinkingFromFooter);
+      el('thinking-enabled-empty') && el('thinking-enabled-empty').addEventListener('change', syncThinkingFromEmpty);
     })();
 
     // Enter envia
@@ -1213,9 +1436,8 @@
       });
     }
 
-    // Sidebar recolhível + localStorage
+    // Sidebar recolhível + localStorage (sidebarEl já definido no bloco do footer)
     const SIDEBAR_COLLAPSED_KEY = 'maggiore_sidebar_collapsed';
-    const sidebarEl = document.getElementById('sidebar');
     const btnToggleSidebar = el('btn-toggle-sidebar');
     function setSidebarCollapsed(collapsed) {
       if (sidebarEl) sidebarEl.classList.toggle('sidebar-collapsed', collapsed);
@@ -1224,12 +1446,18 @@
     }
     if (btnToggleSidebar) {
       btnToggleSidebar.addEventListener('click', function () {
+        if (sidebarUserDropdown && sidebarUserDropdown.getAttribute('aria-hidden') !== 'true') {
+          sidebarUserDropdown.setAttribute('aria-hidden', 'true');
+          if (btnSidebarUser) btnSidebarUser.setAttribute('aria-expanded', 'false');
+          clearSidebarDropdownOutside();
+        }
         setSidebarCollapsed(sidebarEl ? !sidebarEl.classList.contains('sidebar-collapsed') : false);
       });
     }
     try {
       const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
-      setSidebarCollapsed(saved === '1');
+      if (window.innerWidth <= 768) setSidebarCollapsed(false);
+      else setSidebarCollapsed(saved === '1');
     } catch (_) {}
 
     // Sidebar (mobile)
@@ -1267,6 +1495,20 @@
     document.addEventListener('click', function (e) {
       const wrap = el('model-picker-wrap');
       if (wrap && !wrap.contains(e.target)) closePicker();
+      var thinkingWrap = document.getElementById('thinking-level-picker');
+      var thinkingWrapEmpty = document.getElementById('thinking-level-picker-empty');
+      if (thinkingWrap && !thinkingWrap.contains(e.target)) {
+        var listEl = document.getElementById('thinking-level-dropdown');
+        if (listEl) listEl.classList.remove('open');
+        var trig = document.getElementById('thinking-level-trigger');
+        if (trig) trig.setAttribute('aria-expanded', 'false');
+      }
+      if (thinkingWrapEmpty && !thinkingWrapEmpty.contains(e.target)) {
+        var listEmpty = document.getElementById('thinking-level-dropdown-empty');
+        if (listEmpty) listEmpty.classList.remove('open');
+        var trigEmpty = document.getElementById('thinking-level-trigger-empty');
+        if (trigEmpty) trigEmpty.setAttribute('aria-expanded', 'false');
+      }
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePicker(); });
 
@@ -1300,6 +1542,7 @@
       };
       const displayEl = el('user-email');
       if (displayEl) displayEl.textContent = getDisplayName();
+      updateSidebarUser();
       await loadModels();
       await loadSessions();
 

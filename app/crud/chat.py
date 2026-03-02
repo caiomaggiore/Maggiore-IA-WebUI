@@ -76,6 +76,9 @@ def add_chat_message(
     model: str | None = None,
     temperature: float | None = None,
     token_usage: int | None = None,
+    thinking_summary: str | None = None,
+    thinking_time_ms: int | None = None,
+    thinking_level: str | None = None,
 ) -> ChatMessage:
     """Adiciona uma mensagem à sessão e atualiza o updated_at da sessão."""
     message = ChatMessage(
@@ -85,6 +88,9 @@ def add_chat_message(
         model=model,
         temperature=temperature,
         token_usage=token_usage,
+        thinking_summary=thinking_summary,
+        thinking_time_ms=thinking_time_ms,
+        thinking_level=thinking_level,
     )
     db.add(message)
 

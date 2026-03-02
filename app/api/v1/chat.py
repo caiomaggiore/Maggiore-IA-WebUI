@@ -186,36 +186,42 @@ async def _stream_with_persistence(
     full_content: list[str] = []
     messages = list(payload.get("messages") or [])
     level = "inteligente"
+    analysis_summary = ""
+    thinking_time_ms: int | None = None
 
     if thinking and getattr(thinking, "enabled", False):
         level = (getattr(thinking, "level", None) or "inteligente").lower()
         if level not in ("esperto", "inteligente", "culto", "sabio"):
             level = "inteligente"
-        t0 = time.perf_counter()
-        analysis_summary = await chat_svc.run_thinking_planner(
-            last_user_message or (messages[-1].get("content", "") if messages else ""),
-            level=level,
-            model=payload.get("model") or model,
-        )
-        thinking_time_ms = int((time.perf_counter() - t0) * 1000)
-        analysis_chunk = json.dumps({
-            "type": "analysis",
-            "analysis_summary": analysis_summary,
-            "thinking_time_ms": thinking_time_ms,
-            "thinking_level": level,
-        }, ensure_ascii=False) + "\n"
-        yield analysis_chunk.encode("utf-8")
+        user_msg = last_user_message or (messages[-1].get("content", "") if messages else "")
+        async for kind, value in chat_svc.run_thinking_planner_stream(
+            user_msg, level=level, model=payload.get("model") or model
+        ):
+            if kind == "token":
+                chunk_line = json.dumps({"type": "thinking_token", "token": value}, ensure_ascii=False) + "\n"
+                yield chunk_line.encode("utf-8")
+            elif kind == "analysis":
+                analysis_summary = value.get("full", "")
+                thinking_time_ms = value.get("thinking_time_ms")
+                analysis_chunk = json.dumps({
+                    "type": "analysis",
+                    "analysis_summary": analysis_summary,
+                    "thinking_time_ms": value.get("thinking_time_ms", 0),
+                    "thinking_level": value.get("level", level),
+                }, ensure_ascii=False) + "\n"
+                yield analysis_chunk.encode("utf-8")
+                break
 
-        # Injeta o resumo do planner como contexto (system) para a resposta final
-        system_ctx = (
-            "[Contexto interno de planejamento - não repetir na resposta]\n"
-            f"{analysis_summary}"
-        )
-        new_messages = [{"role": "system", "content": system_ctx}] + [
-            {"role": m.get("role", "user"), "content": m.get("content", "")}
-            for m in messages
-        ]
-        payload = {**payload, "messages": new_messages}
+        if analysis_summary:
+            system_ctx = (
+                "[Contexto interno de planejamento - não repetir na resposta]\n"
+                f"{analysis_summary}"
+            )
+            new_messages = [{"role": "system", "content": system_ctx}] + [
+                {"role": m.get("role", "user"), "content": m.get("content", "")}
+                for m in messages
+            ]
+            payload = {**payload, "messages": new_messages}
     payload_for_ollama = {k: v for k, v in payload.items() if k != "thinking"}
 
     async for chunk in chat_service.handle_chat_stream(payload_for_ollama):
@@ -238,6 +244,9 @@ async def _stream_with_persistence(
                 content=content,
                 model=model,
                 temperature=temperature,
+                thinking_summary=analysis_summary or None,
+                thinking_time_ms=thinking_time_ms,
+                thinking_level=level if (thinking and getattr(thinking, "enabled", False)) else None,
             )
             _maybe_update_session_title(db, session_id, model)
         except Exception as exc:

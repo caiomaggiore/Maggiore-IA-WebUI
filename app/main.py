@@ -25,6 +25,9 @@ def _ensure_chat_sessions_columns():
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(128) NULL",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS nickname VARCHAR(128) NULL",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT NULL",
+            "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS thinking_summary TEXT NULL",
+            "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS thinking_time_ms INTEGER NULL",
+            "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS thinking_level VARCHAR(32) NULL",
         ]:
             try:
                 conn.execute(text(stmt))
@@ -46,7 +49,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="SaaS IA — Suporte Técnico AV",
+    title="Aurion IA — Suporte Técnico Inteligente",
     description="API backend com proxy para Ollama, autenticação JWT e base para RAG.",
     version="0.1.0",
     lifespan=lifespan,

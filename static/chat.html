@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Maggiore IA — Chat</title>
+  <title>Aurion IA — Chat</title>
+  <link rel="icon" type="image/png" href="/static/image/aurion-icon-v3.1.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
   <link rel="stylesheet" href="/static/css/base.css">
   <link rel="stylesheet" href="/static/css/chat.css">
 </head>
@@ -14,15 +16,15 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <span class="sidebar-brand">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-          <span class="sidebar-brand-text">Maggiore IA</span>
+          <img src="/static/image/aurion-icon-v3.1.svg" alt="" class="sidebar-brand-icon" width="24" height="24">
+          <span class="sidebar-brand-text"><span class="brand-aurion">Aurion</span> <span class="brand-ia">IA</span></span>
         </span>
+        <button type="button" id="btn-toggle-sidebar" class="btn-icon-sm sidebar-toggle" title="Recolher menu" aria-label="Recolher menu">
+          <svg class="icon-sidebar" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="6" height="16" rx="1"/><path d="M15 6h4M15 12h4M15 18h4"/></svg>
+          <img src="/static/image/aurion-icon-v3.1.svg" alt="" class="icon-logo" width="18" height="18">
+        </button>
         <button type="button" id="btn-close-sidebar" class="btn-icon-sm sidebar-close" title="Fechar menu (mobile)" aria-label="Fechar menu">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-        <button type="button" id="btn-toggle-sidebar" class="btn-icon-sm sidebar-toggle" title="Recolher menu" aria-label="Recolher menu">
-          <svg class="icon-expanded" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          <svg class="icon-collapsed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </div>
 
@@ -52,6 +54,24 @@
           <!-- preenchido pelo JS -->
         </div>
       </nav>
+
+      <footer class="sidebar-footer">
+        <div class="sidebar-user-wrap">
+          <button type="button" id="btn-sidebar-user" class="sidebar-user-trigger" aria-haspopup="true" aria-expanded="false" aria-label="Menu do usuário">
+            <span class="sidebar-user-avatar" id="sidebar-user-avatar">?</span>
+            <span class="sidebar-user-info">
+              <span class="sidebar-user-name" id="sidebar-user-name">Usuário</span>
+              <span class="sidebar-user-email" id="sidebar-user-email"></span>
+            </span>
+            <svg class="sidebar-user-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
+          <div id="sidebar-user-dropdown" class="sidebar-user-dropdown" role="menu" aria-hidden="true">
+            <button type="button" class="sidebar-user-dropdown-item" data-action="profile" role="menuitem">Perfil</button>
+            <button type="button" class="sidebar-user-dropdown-item" data-action="prefs" role="menuitem">Configurações</button>
+            <button type="button" class="sidebar-user-dropdown-item sidebar-user-dropdown-item-danger" data-action="logout" role="menuitem">Sair</button>
+          </div>
+        </div>
+      </footer>
     </aside>
 
     <!-- ── Área de chat ────────────────────────────────────────────── -->
@@ -67,9 +87,7 @@
         <div class="model-picker" id="model-picker-wrap">
             <button type="button" class="model-picker-trigger" id="model-picker-trigger" aria-haspopup="listbox" aria-expanded="false">
               <div class="model-picker-icon">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-                </svg>
+                <span class="model-picker-brain-icon" role="img" aria-hidden="true"></span>
               </div>
               <div class="model-picker-label">
                 <div class="model-name" id="model-picker-name">Carregando…</div>
@@ -85,27 +103,13 @@
             <input type="hidden" id="model-select" value="mistral">
           </div>
 
-        <h1 id="chat-header-title">Maggiore IA</h1>
+        <h1 id="chat-header-title" class="chat-header-brand"><span class="brand-aurion">Aurion</span> <span class="brand-ia">IA</span></h1>
 
         <div class="header-controls">
-
-          <!-- Usuário: dropdown -->
-          <div class="user-menu">
-            <button type="button" id="btn-user-menu" class="btn-user-trigger" aria-haspopup="true" aria-expanded="false" aria-label="Menu do usuário">
-              <span id="user-email" class="user-email"></span>
-              <svg class="user-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div id="user-dropdown" class="user-dropdown" role="menu" aria-hidden="true">
-              <button type="button" class="user-dropdown-item" data-action="profile" role="menuitem">Perfil</button>
-              <button type="button" class="user-dropdown-item" data-action="prefs" role="menuitem">Preferências</button>
-              <button type="button" class="user-dropdown-item user-dropdown-item-danger" data-action="logout" role="menuitem">Sair</button>
-            </div>
-            <button type="button" id="btn-theme" class="btn-icon-sm" title="Alternar tema" aria-label="Alternar tema">
+          <button type="button" id="btn-theme" class="btn-icon-sm" title="Alternar tema" aria-label="Alternar tema">
               <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
               <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
             </button>
-          </div>
-
         </div>
       </header>
 
@@ -116,20 +120,32 @@
             <p id="empty-state-subtitle" class="empty-state-subtitle">Pergunte qualquer coisa. A IA vai responder em seguida.</p>
             <form id="empty-state-form" class="empty-state-form">
               <div class="chat-input-wrap empty-state-input-wrap">
-                <textarea id="empty-state-input" placeholder="Digite sua mensagem…" rows="1"></textarea>
-                <div class="chat-actions">
-                  <div class="thinking-controls thinking-controls-empty" id="thinking-controls-empty">
-                    <label class="thinking-toggle-wrap"><input type="checkbox" id="thinking-enabled-empty" class="thinking-checkbox" aria-label="Ativar Thinking"><span class="thinking-toggle-label">Thinking</span></label>
-                    <select id="thinking-level-empty" class="thinking-level-select" aria-label="Nível de pensamento">
-                      <option value="esperto">Esperto</option>
-                      <option value="inteligente" selected>Inteligente</option>
-                      <option value="culto">Culto</option>
-                      <option value="sabio">Sábio</option>
-                    </select>
-                  </div>
+                <div class="chat-input-row chat-input-row-main">
+                  <textarea id="empty-state-input" placeholder="Digite sua mensagem…" rows="1"></textarea>
+                  <div class="chat-actions">
                   <button type="submit" class="btn-send" title="Enviar">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
                   </button>
+                </div>
+                </div>
+                <div class="chat-input-row chat-input-row-config">
+                  <div class="thinking-controls" id="thinking-controls-empty">
+                    <label class="thinking-toggle-btn"><input type="checkbox" id="thinking-enabled-empty" class="thinking-checkbox" aria-label="Ativar Thinking"><span class="thinking-toggle-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></span><span class="thinking-toggle-label">Thinking</span></label>
+                    <div class="thinking-level-picker thinking-level-dropup" id="thinking-level-picker-empty">
+                      <button type="button" class="thinking-level-trigger-btn" id="thinking-level-trigger-empty" aria-haspopup="listbox" aria-expanded="false">
+                        <span class="thinking-level-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></span>
+                        <span class="thinking-level-name" id="thinking-level-name-empty">Inteligente</span>
+                        <span class="thinking-level-chevron"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg></span>
+                      </button>
+                      <ul class="thinking-level-list" id="thinking-level-dropdown-empty" role="listbox">
+                        <li class="thinking-level-item" data-value="esperto" role="option">Esperto</li>
+                        <li class="thinking-level-item" data-value="inteligente" role="option">Inteligente</li>
+                        <li class="thinking-level-item" data-value="culto" role="option">Culto</li>
+                        <li class="thinking-level-item" data-value="sabio" role="option">Sábio</li>
+                      </ul>
+                      <input type="hidden" id="thinking-level-empty" value="inteligente">
+                    </div>
+                  </div>
                 </div>
               </div>
             </form>
@@ -143,20 +159,9 @@
       <footer class="chat-footer" id="chat-footer">
         <div class="chat-footer-inner">
           <form id="chat-form" class="chat-input-wrap">
-            <textarea id="message-input" placeholder="Digite sua mensagem…" rows="1"></textarea>
-            <div class="chat-actions">
-              <div class="thinking-controls" id="thinking-controls">
-                <label class="thinking-toggle-wrap" title="Modo Thinking: análise antes da resposta">
-                  <input type="checkbox" id="thinking-enabled" class="thinking-checkbox" aria-label="Ativar Thinking">
-                  <span class="thinking-toggle-label">Thinking</span>
-                </label>
-                <select id="thinking-level" class="thinking-level-select" aria-label="Nível de pensamento" title="Nível de profundidade">
-                  <option value="esperto">Esperto</option>
-                  <option value="inteligente" selected>Inteligente</option>
-                  <option value="culto">Culto</option>
-                  <option value="sabio">Sábio</option>
-                </select>
-              </div>
+            <div class="chat-input-row chat-input-row-main">
+              <textarea id="message-input" placeholder="Digite sua mensagem…" rows="1"></textarea>
+              <div class="chat-actions">
               <button type="submit" id="btn-send" class="btn-send" title="Enviar (Enter)">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -169,6 +174,30 @@
                   <rect x="4" y="4" width="16" height="16" rx="2.5" fill="currentColor"/>
                 </svg>
               </button>
+            </div>
+            </div>
+            <div class="chat-input-row chat-input-row-config">
+              <div class="thinking-controls" id="thinking-controls">
+                <label class="thinking-toggle-btn" title="Modo Thinking: análise antes da resposta">
+                  <input type="checkbox" id="thinking-enabled" class="thinking-checkbox" aria-label="Ativar Thinking">
+                  <span class="thinking-toggle-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></span>
+                  <span class="thinking-toggle-label">Thinking</span>
+                </label>
+                <div class="thinking-level-picker thinking-level-dropup" id="thinking-level-picker">
+                  <button type="button" class="thinking-level-trigger-btn" id="thinking-level-trigger" aria-haspopup="listbox" aria-expanded="false">
+                    <span class="thinking-level-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></span>
+                    <span class="thinking-level-name" id="thinking-level-name">Inteligente</span>
+                    <span class="thinking-level-chevron"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg></span>
+                  </button>
+                  <ul class="thinking-level-list" id="thinking-level-dropdown" role="listbox">
+                    <li class="thinking-level-item" data-value="esperto" role="option">Esperto</li>
+                    <li class="thinking-level-item" data-value="inteligente" role="option">Inteligente</li>
+                    <li class="thinking-level-item" data-value="culto" role="option">Culto</li>
+                    <li class="thinking-level-item" data-value="sabio" role="option">Sábio</li>
+                  </ul>
+                  <input type="hidden" id="thinking-level" value="inteligente">
+                </div>
+              </div>
             </div>
           </form>
         </div>
@@ -243,7 +272,7 @@
             <label for="pref-model">Modelo padrão</label>
             <div class="pref-model-picker">
               <button type="button" class="model-picker-trigger pref-trigger" id="pref-model-trigger" aria-haspopup="listbox" aria-expanded="false">
-                <div class="model-picker-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div>
+                <div class="model-picker-icon"><span class="model-picker-brain-icon" role="img" aria-hidden="true"></span></div>
                 <div class="model-picker-label"><div class="model-name" id="pref-model-name">Carregando…</div><div class="model-sub">Modelo de linguagem</div></div>
                 <div class="model-picker-chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
               </button>

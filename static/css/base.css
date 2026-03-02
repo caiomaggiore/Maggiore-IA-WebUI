@@ -1,8 +1,13 @@
 /* base.css — estilos base, variáveis e login */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Paleta pastel/azul */
+  /* Marca Aurion IA */
+  --aurion-light:    #4D8BFF;
+  --aurion-dark:    #0A192F;
+
+  /* Paleta (tons claros com Aurion) */
   --bg-page:         #eef2f8;
   --bg-card:         #ffffff;
   --bg-header:       #ffffff;
@@ -14,8 +19,8 @@
   --text-muted:      #6b7b96;
   --text-light:      #9aabc2;
 
-  --accent:          #4a7ee8;
-  --accent-hover:    #3366d6;
+  --accent:          var(--aurion-light);
+  --accent-hover:    #3d7ae8;
   --accent-soft:     #e8effe;
 
   --danger:          #e05a6b;
@@ -30,23 +35,30 @@
   --shadow-md:       0 4px 16px rgba(74, 126, 232, 0.12);
 
   --font:            'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-brand:      'Poppins', var(--font);
+
+  /* Ícone cérebro: tema claro = azul escuro */
+  --brain-icon-color: var(--aurion-dark);
 }
 
-/* ── Tema escuro ──────────────────────────────────────────────────────────── */
+/* ── Tema escuro (Aurion dark) ─────────────────────────────────────────────── */
 [data-theme="dark"] {
-  --bg-page:         #111827;
-  --bg-card:         #1f2937;
-  --bg-header:       #1f2937;
-  --bg-user-msg:     #1e3a5f;
-  --border:          #374151;
-  --border-focus:    #60a5fa;
+  /* Ícone cérebro: tema escuro = azul claro */
+  --brain-icon-color: var(--aurion-light);
 
-  --text:            #f1f5f9;
+  --bg-page:         #0A192F;
+  --bg-card:         #112240;
+  --bg-header:       #0A192F;
+  --bg-user-msg:     #1e3a5f;
+  --border:          #233554;
+  --border-focus:    #4D8BFF;
+
+  --text:            #e6f1ff;
   --text-muted:      #94a3b8;
   --text-light:      #64748b;
 
-  --accent:          #60a5fa;
-  --accent-hover:    #3b82f6;
+  --accent:          var(--aurion-light);
+  --accent-hover:    #6b9dff;
   --accent-soft:     #1e3a5f;
 
   --danger:          #f87171;
@@ -57,7 +69,7 @@
 }
 
 [data-theme="dark"] .login-page {
-  background: linear-gradient(145deg, #0f172a 0%, #111827 60%, #1e293b 100%);
+  background: linear-gradient(145deg, #020c1b 0%, #0A192F 60%, #112240 100%);
 }
 
 *, *::before, *::after {
@@ -97,10 +109,23 @@ body {
 
 .login-box h1 {
   font-size: 1.75rem;
-  font-weight: 700;
   color: var(--text);
   text-align: center;
   letter-spacing: -0.3px;
+}
+.login-box h1.login-brand {
+  font-family: var(--font-brand);
+}
+.login-box h1.login-brand .brand-aurion {
+  font-weight: 700;
+  color: #0A192F;
+}
+.login-box h1.login-brand .brand-ia {
+  font-weight: 300;
+  color: var(--accent);
+}
+[data-theme="dark"] .login-box h1.login-brand .brand-aurion {
+  color: var(--text);
 }
 
 .login-box .subtitle {
